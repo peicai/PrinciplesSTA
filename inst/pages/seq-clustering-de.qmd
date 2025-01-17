@@ -1,0 +1,262 @@
+# Clustering {#sec-seq-clustering-de}
+
+## Preamble
+
+### Introduction
+
+In ST data, we can apply clustering algorithms to identify spatial domains, which represent spatially defined regions consisting of relatively consistent gene expression profiles. For example, spatial domains may consist of regions containing cells from a single cell type or a consistent mixture of cell types.
+
+Several alternative approaches exist for identifying spatial domains. One strategty involves applying standard clustering algorithms from single-cell workflows without incorporating spatial information. Alternatively, spatial information can be integrated at various stages of the workflow. For example, spatial data can inform preprocessing steps, such as selecting spatially variable genes (SVGs), followed by the application of either non-spatial or spatial clustering algorithms. Another widely used strategy involves generating a latent space that incorporates spatial coordinates, often leveraging Bayesian framework or neural networks.
+
+As advancements in spatial transcriptomics techniques enhance tissue resolution, computational tradeoffs between various approaches and parameters become increasingly relevant.
+
+It is also important to keep in mind that when we use clustering to define cell types and/or states, these can be defined at various resolutions (or even on a continuum). The optimal number of clusters depends on the biological context -- in particular, there is no "true" number of clusters, since this depends on the biological context (e.g. if we are comparing major cell populations vs. comparing rare subtypes), so the choice of the optimal number of clusters or resolutions requires some judgment and biological interpretation.
+
+Once we have identified spatial domains, these can then be further investigated in additional downstream analyses.
+
+### Dependencies
+
+#### Load packages
+
+```{r, message=FALSE}
+library(SpatialExperiment)
+library(scran)
+library(scater)
+library(igraph)
+library(BayesSpace)
+library(Banksy)
+library(Seurat)
+library(PRECAST)
+library(ggspavis)
+library(purrr)
+
+seed <- 123
+n_top <- 1000
+n_PCs <- 15
+n_clusters <- 18
+set.seed(seed)
+```
+
+#### Load previously saved data
+
+We start by loading the previously saved data object(s) (see @sec-seq-normalization-save-objects and @sec-seq-dimensionality-reduction-save-objects).
+
+```{r, message=FALSE, results='hide'}
+spe <- readRDS("vis_qcd_sce.rds")
+```
+
+We first identify highly variable genes (HVGs) to model the mean-variance relationship for each gene, followed by applying PCA on the selected top variable genes. Alternatively, to incorporate spatial information, spatially-aware feature selection can identify top spatially variable genes (SVGs) (see @crs-spatially-variable for details). The resulting set of top SVGs can then be used as input for clustering. Here, we demonstrate examples using HVGs, but the approach is also compatible with other SVG methods.
+
+```{r}
+# Example data:
+spe <- logNormCounts(spe, transform = "log")
+spe <- logNormCounts(spe, transform = "none")
+dec <- modelGeneVar(spe)
+top <- getTopHVGs(dec, n = n_top)
+
+# dimensionality reduction
+# compute PCA
+
+spe <- runPCA(spe, ncomponents = n_PCs, 
+              subset_row = top)
+```
+
+## Clustering
+
+### Non-spatial clustering
+
+Here, we perform clustering by applying standard clustering methods developed for single-cell RNA sequencing data, using molecular features (gene expression) only. We apply graph-based clustering using the Leiden method.
+
+In the context of spatial data, this is the same as applying clustering to identify cell types in single-cell data (although each spot may contain one or more cells, depending on the platform and tissue cell density), and means that we are assuming that biologically informative spatial distribution patterns of cell types can be detected from the molecular features (gene expression).
+
+```{r}
+g <- buildSNNGraph(spe, use.dimred = "PCA")
+g_leiden <- cluster_leiden(g, resolution = 0.07)
+clus_leiden <- g_leiden$membership
+table(clus_leiden)
+# store cluster labels in colData
+colData(spe)[["leiden"]] <- factor(clus_leiden)
+```
+
+
+### Spatially-aware clustering
+
+The example above shows that non-spatial clustering can capture some spatial relationships in ST data, primarily if these are due to spatially distributed cell types and where the cell types can be identified from their gene expression profiles alone. However, this does not directly make use of the spatial information contained in the measurements.
+
+In many ST datasets, we can uncover further structure by performing analyses that directly take spatial information into account. Below, we demonstrate examples of two types of analyses, which we refer to as "spatially-aware clustering".
+
+Several methods to identify spatial domains in ST data have recently been developed, which each have various methodological and computational tradeoffs. These include:
+
+-   **BANKSY**: available as an R package from [Bioconductor](https://bioconductor.org/packages/Banksy) and described by @Singhal2024
+
+-   **PRECAST**: available as an R package from [CRAN](https://cran.r-project.org/package=PRECAST) and described by @Liu2023
+
+-   **CellCharter**: available as a Python package from [GitHub](https://github.com/CSOgroup/cellcharter) and described by @Varrone2023
+
+-   **SpaceFlow**: available as a Python package from [GitHub](https://github.com/hongleir/SpaceFlow) and described by @Ren2022
+
+-   **BayesSpace**: available as an R package from [Bioconductor](https://bioconductor.org/packages/BayesSpace) and described by @Zhao2021
+
+Here, we demonstrate four examples using the same Visium data with  [BayesSpace](https://bioconductor.org/packages/BayesSpace) [@Zhao2021], [BANKSY](https://bioconductor.org/packages/Banksy) [@Singhal2024], and [PRECAST](https://cran.r-project.org/package=PRECAST) [@Liu2023].
+
+#### BayesSpace
+
+ A commonly used Bayesian model, encourages neighboring spots to belong to the same cluster and utilizes Markov Chain Monte Carlo (MCMC) for estimating model parameters.
+
+```{r}
+## Add BayesSpace metadata
+spe_BayesSpace <- spatialPreprocess(spe, platform="Visium", skip.PCA=TRUE)
+
+spe_BayesSpace <- spatialCluster(spe_BayesSpace, q = n_clusters, 
+                        d = n_PCs, platform = 'Visium',
+                        nrep = 10000, gamma = 3)
+
+clus_BayesSpace <- spe_BayesSpace$spatial.cluster
+table(clus_BayesSpace)
+# store cluster labels in colData
+colData(spe)[["BayesSpace"]] <- factor(clus_BayesSpace)
+```
+
+#### BANKSY
+
+BANKSY utilizes a pair of spatial kernels to capture gene expression variation: the weighted mean of gene expression in each cell's neighborhood and another using an azimuthal Gabor filter (AGF). Then, dimension reduction and graph-based clustering follow to determine spatial domains.
+
+```{r}
+# Subset using HVGs; SVGs can also be used instead.
+spe_BANKSY <- spe[top, ]
+# The lambda parameter is a mixing parameter in [0,1] which determines how much spatial information is incorporated for downstream analysis.
+# lamda = 0 corresponds to non-spatial clusters
+lambda <- 0.2
+# k_geom = 6 corresponds to the first-order neighbors in 10x Visium assays 
+# k_geom = 18 corresponds to first and second-order neighbors.
+k_geom <- 6
+assay_name <- "normcounts"
+coord_names <- c("array_row", "array_col")
+```
+
+```{r, results='hide'}
+# Run PCA on the Banksy matrix
+spe_BANKSY <- computeBanksy(spe, assay_name = assay_name, 
+                     k_geom = k_geom, 
+                     coord_names = coord_names)
+spe_BANKSY <- runBanksyPCA(spe_Banksy, lambda = lambda, 
+                    npcs = n_PCs)
+```
+
+```{r}
+# Perform Banksy clustering
+spe_BANKSY <- clusterBanksy(spe_Banksy, lambda = lambda, resolution = 1.2, 
+                           npcs = n_PCs, seed = seed)
+clus_BANKSY <- spe_Banksy[[clusterNames(spe_BANKSY)]]
+table(clus_BANKSY)
+# store cluster labels in colData
+colData(spe)[["BANKSY"]] <- factor(clus_BANKSY)
+```
+
+#### PRECAST
+
+Here, we demonstrate an example using [PRECAST](https://cran.r-project.org/web/packages/PRECAST) [@precast].
+
+```{r, message=FALSE}
+# Prepare the PRECASTObject and the model setting
+seurat_obj <- as.Seurat(spe)
+seurat_obj@meta.data$col <- spatialCoords(spe)[, 1]
+seurat_obj@meta.data$row <- spatialCoords(spe)[, 2]
+
+# Use HVGs as example; SVGs can also be used instead.
+seurat_PRECAST <- CreatePRECASTObject(seuList = list(seurat_obj),
+                                      customGenelist = top)
+
+# Platforms should be either "Visium", "ST", or "Other_SRT"
+seurat_PRECAST <- AddAdjList(seurat_PRECAST, platform = "Other_SRT")
+seurat_PRECAST <- AddParSetting(seurat_PRECAST, Sigma_equal = FALSE, 
+                                coreNum = 4, maxIter = 10)
+```
+
+```{r, message=FALSE, results='hide'}
+# Fit PRECAST
+seurat_PRECAST <- PRECAST(seurat_PRECAST, K = n_clusters)
+seurat_PRECAST <- SelectModel(seurat_PRECAST)
+clus_PRECAST <- unlist(seurat_PRECAST@resList$cluster[1])
+```
+
+```{r}
+table(clus_PRECAST)
+# store cluster labels in colData
+colData(spe)[["PRECAST"]] <- factor(clus_PRECAST)
+```
+
+## Visualization
+
+Visualize the clusters by plotting in (i) spatial (x-y) coordinates on the tissue slide, and (ii) reduced dimension space (PCA or UMAP). We use plotting functions from the [ggspavis](https://bioconductor.org/packages/ggspavis) package.
+
+```{r, fig.height=3.5, echo=FALSE}
+# plot clusters in spatial x-y coordinates
+p1 <- plotSpots(spe, annotate = "leiden", legend_position = "none") + ggtitle("Leiden")
+p2 <- plotSpots(spe, annotate = "BayesSpace", legend_position = "none") + ggtitle("BayesSpace")
+p3 <- plotSpots(spe, annotate = "BANKSY", legend_position = "none") + ggtitle("BANKSY")
+p4 <- plotSpots(spe, annotate = "PRECAST", legend_position = "none") + ggtitle("PRECAST")
+
+p1 | p2 | p3 | p4
+```
+
+```{r, message=FALSE, echo=FALSE, fig.width=10, fig.height=5}
+# plot clusters in PCA reduced dimensions
+# p1 <- plotDimRed(spe, plot_type = "PCA", annotate = "leiden") + ggtitle("Leiden")
+# p2 <- plotDimRed(spe, plot_type = "PCA", annotate = "BayesSpace") + ggtitle("BayesSpace")
+# p3 <- plotDimRed(spe, plot_type = "PCA", annotate = "BANKSY") + ggtitle("BANKSY")
+# 
+# p1 | p2 | p3
+```
+
+## Differential expression between clusters
+
+```{r}
+scran_marker <- findMarkers(spe, groups = spe[["BANKSY"]], pval.type = "all",
+                            test.type = "t", add.summary = TRUE)
+
+top_markers <- map(seq_along(scran_marker),function(.x){
+    tmp <- scran_marker[[.x]]
+    tmp <- tmp[tmp$self.detected > 0.05 & tmp$self.average > log(2),]
+    head(tmp[, "FDR", drop = FALSE], n = 5)
+    })
+```
+
+### Markers per cluster {.tabset}
+
+```{r, results='asis', echo=FALSE}
+for(i in seq_along(top_markers)){
+    cat("#### ", i, " \n\n")
+    top_markers[[i]] %>% 
+      as.data.frame() %>% 
+      dplyr::mutate_if(is.numeric, ~ as.character(signif(., 3))) %>% 
+      knitr::kable() %>% 
+      print()
+    cat("\n\n")
+  }
+```
+
+
+```{r}
+genes_used <- unlist(lapply(top_markers, function(x) rownames(x)))
+```
+
+## Appendix
+
+### Saving {.unnumbered}
+
+Save the object(s) in `.rds` format for re-use within later chapters to speed up the build time of the book.
+
+```{r}
+# save object(s)
+# saveRDS(spe, file = "seq-spe_clustering_de.rds")
+```
+
+### Benchmarks {.unnumbered}
+
+-   https://doi.org/10.1093/bfgp/elae040
+-   https://doi.org/10.1186/s13059-024-03361-0
+-   https://doi.org/10.1038/s41592-024-02325-3
+-   https://doi.org/10.1016/j.csbj.2023.11.055
+
+### References {.unnumbered}
