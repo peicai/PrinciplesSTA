@@ -1,0 +1,71 @@
+# Cell communication
+
+Might be worth giving an example of using `reticulate/basilisk` to call a Python method here, to show interoperability is pretty straightforward (granted inputs and outputs are easily convertible).  
+
+E.g., my personal pipeline does something like this to call `COMMOT`, an optimal transport-based approach that models competition between sender and receiver signals, considers physical distances, and easily links to public databases:
+
+```{r eval=FALSE}
+# dependencies
+suppressPackageStartupMessages({
+    library(scater)
+    library(reticulate)
+    library(BiocParallel)
+    library(zellkonverter)
+    library(SingleCellExperiment)
+})
+
+# setup
+bp <- MulticoreParam(10)
+. <- "~/software/mambaforge/bin/conda"
+options(reticulate.conda_binary=.)
+use_condaenv("commot")
+
+# loading
+sce <- readRDS(...)
+sce <- logNormCounts(sce, BPPARAM=bp)
+
+# wrangling
+xy <- spatialCoords(sce)
+reducedDim(sce, "spatial") <- xy
+
+# run 'COMMOT'
+ad <- import("anndata")
+ct <- import("commot")
+pd <- import("pandas")
+
+# retrieve LR interaction from CellChatDB & filter for 
+# those that are fully covered by the 1k-plex CosMx panel
+db <- ct$pp$ligand_receptor_database(database="CellChat", species="human")
+names(db) <- c("ligand", "receptor", "pathway", "type"); nrow(db)
+db <- db[apply(db, 1, \(.) {
+    rs <- strsplit(.["receptor"], "_")
+    lr <- c(.["ligand"], unlist(rs))
+    all(lr %in% rownames(sce))
+}), ]; nrow(db)
+
+# subset to features being considered
+rs <- sapply(strsplit(db$receptor, "_"), .subset, 1)
+nrow(sce <- sce[unique(c(db$ligand, rs)), ])
+
+is <- split(colnames(sce), sce$fov)
+sr <- bplapply(is, BPPARAM=bp, \(.) { 
+    # skip FoV when there are too few cells
+    if (length(.) < 100) return(NULL) 
+    ad <- SCE2AnnData(sce[, .], X_name="logcounts")
+    ct$tl$spatial_communication(ad,
+        database_name="CellChatDB",
+        # average cell is 10x10um; here, we consider 
+        # a distance threshold of 10 cells = 0.1mm
+        dis_thr=0.1,  
+        df_ligrec=db,
+        heteromeric=TRUE,
+        pathway_sum=TRUE,
+        heteromeric_rule="min",
+        heteromeric_delimiter="_")
+    list(
+        ad$obsm["commot-CellChatDB-sum-sender"], 
+        ad$obsm["commot-CellChatDB-sum-receiver"])
+})
+```
+
+## References {.unnumbered}

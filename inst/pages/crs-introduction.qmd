@@ -1,0 +1,3 @@
+# Introduction {#sec-crs-introduction}
+
+This part contains chapters describing methods for cross-platform analyses, such as methods that can combine information from both sequencing-based and imaging-based data.

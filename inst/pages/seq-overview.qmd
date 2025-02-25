@@ -1,7 +1,0 @@
-# Overview {#sec-seq-overview}
-
-This part contains a series of chapters describing (i) individual **analysis steps**, followed by (ii) extended **workflows**, for data from sequencing-based spatial transcriptomics platforms (see @sec-bkg-spatial-transcriptomics for an overview of the types of technological platforms).
-
-The chapters on the individual analysis steps contain relatively detailed information, including discussion on the purpose of each step, and links to alternative methods. By contrast, the workflow chapters are more condensed, showing how to put together the analysis steps into complete workflows.
-
-A condensed summary of the code from the analysis steps chapters is also shown in @sec-seq-code-summary-analysis-steps, which can be used as a reference or to re-run earlier steps in an analysis workflow.

@@ -14,10 +14,10 @@ welcome <- tryCatch(
 
 # Welcome {-}
 
-This is the website for the online book **Principles of Spatial Transcriptomics Analysis with Bioconductor**.
+This is the website for the online book **Orchestrating Spatial Transcriptomics Analysis with Bioconductor**.
 
-This book provides interactive examples and discussion on key principles of computational analysis workflows for spatial transcriptomics data using [Bioconductor](http://bioconductor.org/) in R. The book contains chapters describing individual analysis steps as well as extended workflows, each with examples including R code and datasets.
+This book provides interactive examples and discussion on key principles of computational analysis workflows for spatial omics data using [Bioconductor](http://bioconductor.org/) in R. The book contains chapters describing individual analysis steps as well as extended workflows, each with examples including R code and datasets. In a few cases, R code is integrated with Python tools.
 
-The book is organized into several parts, consisting of introductory materials, and analysis steps and workflows for sequencing-based and imaging-based spatial transcriptomics platforms.
+The book is organized into several parts, consisting of introductory materials, and analysis steps and workflows for the two main streams of spatial omics data: sequencing-based and imaging-based.
 
 Additional materials on analysis workflows for non-spatial single-cell data, as well as further introductory materials on R and Bioconductor, can be found in the related book [Orchestrating Single-Cell Analysis with Bioconductor (OSCA)](https://bioconductor.org/books/release/OSCA/).

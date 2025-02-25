@@ -1,0 +1,301 @@
+# Xenium workflow {#sec-img-workflow-xenium}
+
+## Preamble
+
+### Introduction
+
+<!-- TODO -->
+
+### Dependencies
+
+```{r load-libs, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(scran)
+library(igraph)
+library(scater)
+library(scuttle)
+library(SingleR)
+library(ggplot2)
+library(patchwork)
+library(OSTA.data)
+library(BayesSpace)
+library(BiocParallel)
+library(DropletUtils)
+library(SpatialExperiment)
+library(SpatialExperimentIO)
+# set parallelization
+bp <- MulticoreParam(10)
+# set seed for random number generation
+# in order to make results reproducible
+set.seed(112358)
+```
+
+```{r load-spe}
+# retrieve dataset from OSF repository
+id <- "Xenium_HumanColon_Oliveira"
+pa <- OSTA.data_load(id)
+dir.create(td <- tempfile())
+unzip(pa, exdir=td)
+(spe <- readXeniumSXE(td))
+```
+
+```{r utils}
+#| code-fold: true
+.plt_xy <- \(spe, col) {
+    df <- data.frame(colData(spe), spatialCoords(spe))
+    aes <- if (is.numeric(df[[col]])) {
+        theme(
+            legend.key.height=unit(1, "lines"), 
+            legend.key.width=unit(0.5, "lines"))
+    } else {
+        list(
+            theme(legend.key.size=unit(0, "lines")),
+            guides(col=guide_legend(override.aes=list(alpha=1, size=2))))
+    }
+    ggplot(df, aes(x_centroid, y_centroid, col=.data[[col]])) +
+        coord_equal() + theme_void() + aes +
+        geom_point(stroke=0, size=1/3)
+} 
+```
+
+## Quality control
+
+```{r qc}
+# compute cell-level QC metrics
+spe <- addPerCellQCMetrics(spe)
+# identify low-quality cells by thresholding on
+# median absolute deviation (MAD) from the median
+ol <- perCellQCFilters(spe)
+# tabulate # and % of cells discarded 
+# due to few counts/detected features
+data.frame(
+    check.names=FALSE,
+    `#`=apply(ol, 2, sum), 
+    `%`=round(100*apply(ol, 2, mean), 2))
+```
+
+Before proceeding to exclude any cells from downstream analyses, let's 
+first visualize the cells deemed to be of low quality in space alongside 
+the underlying quality control metrics (total counts and detected features):
+
+```{r plt-ol, fig.width=12, fig.height=4}
+#| code-fold: true
+spe$ol <- ol$discard
+.plt_xy(spe, "sum") +  
+    scale_color_viridis_c(
+        "# counts", 
+        trans="log1p",
+        breaks=range(spe$sum), 
+        labels=c("low", "high")) +
+.plt_xy(spe, "detected") +
+    scale_color_viridis_c(
+        "# features", 
+        breaks=range(spe$detected), 
+        labels=c("low", "high")) +
+.plt_xy(spe[, order(spe$ol)], "ol") + 
+    scale_color_manual(
+        "low-quality",
+        labels=c("no", "yes"),
+        values=c("lavender", "purple"))
+```
+
+```{r fil}
+# discard low-quality cells
+ncol(spe <- spe[, !ol$discard])
+```
+
+## Processing
+
+For the sake of runtime, we will perform downstream analyses only on
+a square crop of the tissue, defined by the following px coordinates:
+
+```{r box}
+box <- list(xmin=2e3, xmax=5e3, ymin=1e3, ymax=4e3)
+```
+
+Cropping to this region, we retain fewer than 90,000 cells:
+
+```{r sub}
+xy <- spatialCoords(spe)
+i <- 
+    xy[, 1] > box$xmin &
+    xy[, 1] < box$xmax &
+    xy[, 2] > box$ymin &
+    xy[, 2] < box$ymax 
+ncol(sub <- spe[, i])
+```
+
+```{r plt-sub, fig.width=5.5, fig.height=3}
+#| code-fold: true
+df <- data.frame(xy, i)
+p <- ggplot(df, 
+    aes(x_centroid, y_centroid)) +
+    coord_equal() + theme_void() + 
+    theme(legend.position="none")
+p + geom_point(aes(col=i), stroke=0, size=0.1) |
+p + geom_point(data=df[i, ], stroke=0, size=0.2)
+```
+
+Next, we'll log-normalize counts by area, and perform principal 
+component analysis (PCA) on all `r nrow(spe)` RNA targets:
+
+```{r pro}
+# cell area-based normalization
+logcounts(sub) <- sweep(assay(sub), 2, sub$cell_area, `/`)
+# principal component analysis
+sub <- runPCA(sub, BPPARAM=bp)
+```
+
+Let's visualize the expression of some genes in space; e.g., PIGR, IGHG3 and 
+CEACAM6, which should mark epithelial, plasma and tumor cells, respectively:
+
+```{r plt-gs-xy, fig.width=8, fig.height=3}
+#| code-fold: true
+gs <- c("PIGR", "IGHG3", "CEACAM6")
+es <- scale(logcounts(sub))
+es <- t(as.matrix(es[gs, ]))
+colData(sub) <- cbind(colData(sub), es)
+ps <- lapply(gs, \(.) .plt_xy(sub, .) + ggtitle(.))
+wrap_plots(ps, nrow=1) &
+    scale_color_gradientn(NULL, 
+        labels=c("low", "high"), 
+        colors=rev(hcl.colors(9, "PuRd")),
+        limits=rng, breaks=rng <- range(es)) & 
+    theme(plot.title=element_text(hjust=0.5))
+```
+
+## Annotation
+
+### Unsupervised
+
+```{r Leiden}
+# shared nearest-neighbor (SNN) graph based on 
+# cell-to-cell Jaccard similarity in PC space
+g <- buildSNNGraph(sub, use.dimred="PCA", type="jaccard", BPPARAM=bp)
+# community detection using Leiden algorithm
+k <- cluster_leiden(g, objective_function="modularity", resolution=0.7)
+table(sub$Leiden <- factor(. <- k$membership, labels=letters[seq_along(unique(.))]))
+```
+
+### Supervised
+
+For comparison, we annotate the Xenium data using a label transfer approach, 
+`r BiocStyle::Biocpkg("SingleR")`, which relies on labeled scRNA-seq data to 
+compute references profiles and transfers labels based on the rank correlation 
+between observed (here, Xenium) and reference (scRNA-seq) expression profiles.
+
+First, we retrieve a matching (Chromium) scRNA-seq dataset, which includes low- 
+(`Level1`) and high-resolution (`Level2`) annotations of cells into 9 and 31 
+subpopulations, respectively:
+
+```{r load-sce, results="hold", message=FALSE, warning=FALSE}
+# retrieve dataset from OSF repository
+id <- "Chromium_HumanColon_Oliveira"
+pa <- OSTA.data_load(id)
+dir.create(td <- tempfile())
+unzip(pa, exdir=td)
+# read into 'SingleCellExperiment'
+sce <- read10xCounts(list.files(td, "h5$", full.names=TRUE))
+cd <- read.csv(list.files(td, "cell_meta", full.names=TRUE))
+colData(sce) <- cbind(colData(sce), cd[, -1])
+table(sce$Level1) # tabulate low-res. labels
+ncol(sce) # overall number of cells
+```
+
+Here, we run `SingleR` using high-res. annotations (`Level2`) and with argument
+`aggr.ref=TRUE`, such that reference profiles will be aggregated (per cluster)
+prior to annotation. In this way, every single Xenium cell will be assigned a
+label based on which pseudo-bulk scRNA-seq profile represents the best match.
+
+```{r lv2}
+# drop unassigned cells
+sce <- sce[, sce$Level1 != "QC_Filtered"]
+# realize count matrix
+assay(sce) <- as(assay(sce), "dgCMatrix")
+# log-library size normalization
+sce <- logNormCounts(sce)
+# restrict to Xenium targets
+sce <- sce[rowData(sce)$ID %in% rowData(sub)$ID, ]
+# use gene symbols as names
+rownames(sce) <- rowData(sce)$Symbol
+# perform label transfer at the single cell-level,
+# using pseudo-bulk Chromium profiles as reference
+res <- SingleR(
+    test=sub, ref=sce, 
+    labels=sce$Level2, 
+    aggr.ref=TRUE, BPPARAM=bp)
+sub$Level2 <- factor(res$pruned.labels)
+```
+
+Based on these predictions, we can also propagate low-res. annotations (`Level1`):
+
+```{r lv1}
+idx <- match(sub$Level2, sce$Level2)
+table(sub$Level1 <- factor(sce$Level1[idx]))
+```
+
+Simplifying further, we can group cells into different compartments, namely,
+(malignant) tumor, immune, epithelial and stromal cells; we'll see below that
+visualizing cells in this way nicely captures the general tissue structure.
+
+```{r lv0}
+lab <- list(
+    tum=c("Tumor"),
+    epi=c("Intestinal Epithelial"),
+    imm=c("B cells", "T cells", "Myeloid"),
+    str=c("Endothelial", "Fibroblast", "Smooth Muscle"))
+idx <- match(sub$Level1, unlist(lab))
+lab <- rep.int(names(lab), sapply(lab, length))
+table(sub$Level0 <- factor(lab[idx]))
+```
+
+### Comparison
+
+Tabulating the cluster assignments between Leiden (unsupervised) and `SingleR` 
+(supervised), we can observe overall high concordance; i.e., most clusters have
+a one-to-one mapping between both approaches. However, some subpopulations are
+split between clusters; e.g., cells labeled as cluster fibroblasts, endothelia 
+and smooth muscle cells by `SingleR` tend to intermix in the Leiden clusters. 
+This is not unexpected, given that these are all stromal subpopulations with 
+comparatively similar transcriptional profiles. (Note that we are observing a
+mere fraction of the whole transcriptome with the Xenium panel employed here.)
+
+```{r tbl}
+# contingency table & number of clusters
+round(100*prop.table(table(sub$Level1, sub$Leiden), 2), 1)
+c(SingleR=nlevels(sub$Level1), Leiden=nlevels(sub$Leiden))
+```
+
+```{r plt-clu, fig.width=10, fig.height=3}
+#| code-fold: true
+lapply(c("Leiden", "Level0", "Level1"), \(.) {
+    pal <- if (. == "Level0") {
+        c("gold", "cyan", "magenta", "black")
+    } else {
+        hcl.colors(nlevels(sub[[.]]), "Spectral")
+    }
+    .plt_xy(sub, .) + scale_color_manual(values=pal) 
+}) |> wrap_plots()
+```
+
+## Downstream
+
+### Marker genes
+
+Below, we test for differential expression between `Level1` clusters, and 
+visualize selected markers as a heatmap of (z-scaled) average expression.
+It's comforting to see that we pick up on many classics, e.g., endothelia 
+are marked by VWF and PECAM1, T cells by CD2 and TRAC, etc.
+
+```{r mgs, fig.width=3, fig.height=6}
+# test for differential expression between clusters
+mgs <- findMarkers(sub, groups=sub$Level1, direction="up")
+# select top-ranked genes for every cluster
+top <- unique(unlist(lapply(mgs, \(df) rownames(df)[df$Top <= 3])))
+plotGroupedHeatmap(sub, 
+    features=top, group="Level1", 
+    scale=TRUE, center=TRUE, fontsize=6)
+```
+
+## References {.unnumbered}

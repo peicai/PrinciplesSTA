@@ -2,10 +2,10 @@
 
 ## Introduction
 
-In the previous workflow, @sec-seq-workflow-human-dlpfc, you practiced some of the basics with a portion of the postmortem human brain dataset @Maynard2021. The goal of this workflow is to learn what steps you need to carry out in order to create an interactive website to visualize this type of data. For this, we'll use the [`spatialLIBD`](http://bioconductor.org/packages/spatialLIBD) Bioconductor package @Pardo2022.
+In the previous workflow, @sec-seq-workflow-dlpfc, you practiced some of the basics with a portion of the postmortem human brain dataset @Maynard2021. The goal of this workflow is to learn what steps you need to carry out in order to create an interactive website to visualize this type of data. For this, we'll use the [`spatialLIBD`](http://bioconductor.org/packages/spatialLIBD) Bioconductor package @Pardo2022.
 
 ```{r, echo=FALSE, out.width = "100%", fig.align="center", fig.cap="`spatialLIBD` overview. Source: @Pardo2022."}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/spatialLIBD_Figure1.png")
+knitr::include_graphics("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/images/spatialLIBD_Figure1.png")
 ```
 
 
@@ -22,13 +22,13 @@ Before we dive into the R code, let's first revisit why you might want to use `s
 Both options work with continuous and discrete variables such as the gene expression and clusters, respectively. The interactive version for discrete variables such as clusters is useful if you want to manually annotate Visium spots, as it was done in the initial project @Maynard2021. `spatialLIBD` allows users to download the annotated spots and resume your spot annotation work later. 
 
 ```{r, echo=FALSE, out.width = "100%", fig.align="center", fig.cap="Screenshot of the 'clusters (interactive)' section of the 'spot-level data' panel created with the full spatialLIBD dataset. The website was created with `spatialLIBD::run_app(spatialLIBD::fetch_data('spe'))` version 1.4.0 and then using the lasso selection, we selected a set of spots in the UMAP interactive plot colored by the estimated number of cells per spot (`cell_count`) on the bottom left, which automatically updated the other three plots."}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/spatialLIBD_interactive_cluster.png")
+knitr::include_graphics("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/images/spatialLIBD_interactive_cluster.png")
 ```
 
 Visualizing genes or clusters across multiple tissue sections can be quite useful. For example, here we show the expression levels of _PCP4_ across two sets of spatially adjacent replicates. _PCP4_ is a marker gene for layer 5 in the grey matter of the dorsolateral prefrontal cortex (DLPFC) in the human brain. Spatially adjacent replicates are about 10 microns apart from each other and visualizations like the one below help assess the technical variability in the Visium technology.
 
 ```{r, echo=FALSE, out.width = "100%", fig.align="center", fig.cap="Screenshot of the 'gene grid (static)' section of the 'spot-level data' panel created with the full spatialLIBD dataset. The website was created with `spatialLIBD::run_app(spatialLIBD::fetch_data('spe'))` version 1.4.0, selecting the _PCP4_ gene, selecting the _paper_ gene color scale, changing the number of rows and columns in the grid 2, selecting two pairs of spatially adjacent replicate samples (151507, 151508, 151673, and 151674), and clicking on the _upgrade grid plot_ button. Note that the default _viridis_ gene color scale is color-blind friendly."}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/spatialLIBD_gene_grid.png")
+knitr::include_graphics("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/images/spatialLIBD_gene_grid.png")
 ```
 
 You can try out a `spatialLIBD`-powered website yourself by opening [it on your browser](http://spatial.libd.org/spatialLIBD) ^[Check https://github.com/LieberInstitute/spatialLIBD#shiny-website-mirrors in case you need to use a mirror. `shiny`-powered websites work best on browsers such as Google Chrome and Mozilla Firefox, among others.].
@@ -70,7 +70,7 @@ You might also be interested in this video demonstration of `spatialLIBD` for th
 
 ## Code prerequisites
 
-Ok, let's get started! First we need to re-create the `spe` object from the @sec-seq-workflow-human-dlpfc in the previous chapter. That chapter included code for visualizing results along the way, which we'll skip here. Thus, we'll use the following packages in addition to `spatialLIBD`:
+Ok, let's get started! First we need to re-create the `spe` object from the @sec-seq-workflow-dlpfc in the previous chapter. That chapter included code for visualizing results along the way, which we'll skip here. Thus, we'll use the following packages in addition to `spatialLIBD`:
 
 * [`SpatialExperiment`](http://bioconductor.org/packages/SpatialExperiment): for storing our data in a common object
 * [`STexampleData`](http://bioconductor.org/packages/STexampleData): for accessing the example data
@@ -105,7 +105,7 @@ BiocManager::install(c(
 ))
 ```
 
-We can now run the following R code to re-make the `spe` object from the @sec-seq-workflow-human-dlpfc. This will take a bit of time.
+We can now run the following R code to re-make the `spe` object from the @sec-seq-workflow-dlpfc. This will take a bit of time.
 
 ```{r spatialLIBD_prereq_code, message = FALSE}
 ## Load packages required for the
@@ -399,7 +399,7 @@ if (interactive()) {
 ```
 
 ```{r, echo=FALSE, out.width = "100%", fig.align="center", fig.cap="Screenshot of the 'clusters (interactive)' section of the 'spot-level data' panel created with with the data from this workflow."}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/spatialLIBD_demo_result.png")
+knitr::include_graphics("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/images/spatialLIBD_demo_result.png")
 ```
 
 
@@ -413,25 +413,25 @@ Now that you have created a `spatialLIBD`-powered website, you might be interest
 lobstr::obj_size(spe) / 1024^2 ## Convert to MB
 ```
 
-If your data is small enough, you might want to share your website by hosting on [shinyapps.io](https://www.shinyapps.io/) by RStudio, which you can try for free. Once you have created your account, you'll want to create an `app.R` file like the one we have [on the `spatialLIBD_demo` directory](https://github.com/lmweber/PrinciplesSTA-resources/tree/main/spatialLIBD_demo).
+If your data is small enough, you might want to share your website by hosting on [shinyapps.io](https://www.shinyapps.io/) by RStudio, which you can try for free. Once you have created your account, you'll want to create an `app.R` file like the one we have [on the `spatialLIBD_demo` directory](https://github.com/lmweber/OSTA-resources/tree/main/spatialLIBD_demo).
 
 ```{r spatialLIBD_app_file, echo = FALSE}
-cat(paste0(readLines("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/spatialLIBD_demo/app.R"), "\n"))
+cat(paste0(readLines("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/spatialLIBD_demo/app.R"), "\n"))
 ```
 
 You can then open R in a new session in the same directory where you saved the `app.R` file, run the code and click on the "publish" blue button at the top right of your RStudio window. You'll then need to upload the `app.R` file, your `spe_workflow_Visium_spatialLIBD.rds` file and the files under the `www` directory which enable you to customize your `spatialLIDB` website. 
 
 ```{r, echo=FALSE, out.width = "80%", fig.align="center", fig.cap="Screenshot of the RStudio window for publishing your spatialLIBD-powered website to shinyapps.io"}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/spatialLIBD_publish.png")
+knitr::include_graphics("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/images/spatialLIBD_publish.png")
 ```
 
 The RStudio prompts will guide you along the process for authenticating to your shinyapps.io account, which will involve copy pasting some code that starts with `rsconnect::setAccountInfo()`. Alternatively, you can create a `deploy.R` script and write the code for uploading your files to shinyapps.io as shown below.
 
 ```{r spatialLIBD_deploy_file, echo = FALSE}
-cat(paste0(readLines("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/spatialLIBD_demo/deploy.R"), "\n"))
+cat(paste0(readLines("https://raw.githubusercontent.com/lmweber/OSTA-resources/main/spatialLIBD_demo/deploy.R"), "\n"))
 ```
 
-Note that we have copied the default [`www` directory files from the `spatialLIBD` repository](https://github.com/LieberInstitute/spatialLIBD/tree/master/inst/app/www) and [adapted them to our liking](https://github.com/lmweber/PrinciplesSTA-resources/tree/main/spatialLIBD_demo/www). We then use these files with `spatialLIBD::run_app(docs_path)` in our `app.R` script. These files help us control portions of our `spatialLIBD`-powered website and customize it to our liking.
+Note that we have copied the default [`www` directory files from the `spatialLIBD` repository](https://github.com/LieberInstitute/spatialLIBD/tree/master/inst/app/www) and [adapted them to our liking](https://github.com/lmweber/OSTA-resources/tree/main/spatialLIBD_demo/www). We then use these files with `spatialLIBD::run_app(docs_path)` in our `app.R` script. These files help us control portions of our `spatialLIBD`-powered website and customize it to our liking.
 
 If you follow this workflow, you'll end up with a website [just like this one](https://libd.shinyapps.io/OSTA_spatialLIBD_demo/). In our case, we further configured our website through the shinyapps.io dashboard. We selected the following options:
 
@@ -448,7 +448,7 @@ The `Max Worker Processes` determines how many R sessions are open per instance.
 Thank you for reading this far! In this workflow we showed you:
 
 * why you might be interested in using `spatialLIBD`,
-* we re-used the `spe` object from the @sec-seq-workflow-human-dlpfc chapter,
+* we re-used the `spe` object from the @sec-seq-workflow-dlpfc chapter,
 * we adapted the `spe` object to make it compatible with `spatialLIBD`,
 * we created an interactive website in our laptops,
 * we shared the website with others using shinyapps.io.

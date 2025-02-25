@@ -9,7 +9,7 @@ format:
     mainfont: "Atkinson Hyperlegible, sans-serif"
     highlight-style: atom-one
     code-link: true
+    code-fold: show
     editor: visual
     bibliography: assets/bibliography.bib
     from: markdown+emoji
-  pdf: default

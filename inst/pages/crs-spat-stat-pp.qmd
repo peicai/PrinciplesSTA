@@ -1,0 +1,216 @@
+## Point Pattern Analysis
+
+Point pattern analysis is a subfield of spatial statistics that focuses on the representation of spatial locations of events or objects as points [@Baddeley2015 p. 3]. There are two main ways how to summarize cells as points [@Emons2024-pasta]:
+
+- approximate the features (mRNAs) as points.
+- segment the cells and represent the centroids as points.
+
+The central `R` package to perform point pattern analysis is called `r BiocStyle::CRANpkg('spatstat')` [@Baddeley2005-spatstat]. The package `spatialFDA` creates an interface between `SpatialExperiment` objects and the `r BiocStyle::CRANpkg('spatstat')` library for easy integration into analysis workflows.
+
+Part of this vignette is based on the [pasta overview vignette ](https://robinsonlabuzh.github.io/pasta/00-overview-ppSOD.html) and [another vignette](https://robinsonlabuzh.github.io/pasta/01-imaging-univar-ppSOD.html) @Emons2024-pasta
+
+::: {.callout-note collapse="true" title="`ppp` object"}
+
+The central object in `r BiocStyle::CRANpkg("spatstat")` is called `ppp`. 
+This object contains three attributes:
+
+- the $x$ and $y$ coordinates of the points
+- the observation window of the pattern
+- marks which are associated with each point; this can be, e.g., 
+a discrete cell type mark or a continuous gene expression mark
+
+[@Baddeley2005-spatstat]
+
+:::
+
+In the following we will work with a Xenium dataset of breast cancer [@Janesick2023]. The representation of cells as points is done via cell centroids.
+
+```{r loading pp, message=FALSE, warning=FALSE}
+spe <- sfe
+rm(sfe)
+```
+
+In the plot below, the centroids of the cells are attributed with a discrete cell type mark. 
+
+```{r plot object, fig.width=12, fig.height=8, message=FALSE, warning=FALSE}
+df <- data.frame(xy, colData(spe))
+ggplot(df, aes(x_centroid, y_centroid, col=Cluster)) +
+    guides(col=guide_legend(override.aes=list(size=2))) +
+    theme_xy + theme(legend.key.size=ggplot2::unit(0, "pt")) +
+    geom_point(size=0.05) 
+```
+
+### Intensity
+
+The first property to assess in a point pattern is the intensity. For a window $W$ and points $x$, the average intensity $\bar{\lambda}$ is defined as the number of points $n(x)$ divided by the area of the window $|W|$:
+
+$$
+\bar{\lambda}=\frac{n(x)}{|W|}
+$$
+
+The intensity of the points can be uniform in space which is called homogeneous. If the intensity is not uniform in space, it is called inhomogeneous. This distinction has important implications for the choice of the spatial metrics. Most metrics have a correction for inhomogeneous intensity of points [@Baddeley2015 pp. 157 ff.]. 
+
+::: {.callout-note collapse="true" title="Estimating intensity"}
+
+```{r estimating intensity, message=FALSE, warning=FALSE}
+# TODO: temporary fix
+spatialCoordsNames(spe) <- c("x", "y")
+dfSpe <- .speToDf(spe)
+pp <- .dfToppp(dfSpe, marks = "Cluster")
+
+density(x=pp, sigma = bw.diggle) |> plot()
+```
+
+In the plot above we see that the intensity of all points is not uniform. This inhomogeneity of points has to be taken into accounts when interpreting spatial statistics metrics. For example, an indication of clustering in a point pattern can be due solely to an inhomogeneity of points. This is called the confounding between intensity and interaction [@Baddeley2015 pp. 151 ff.]. 
+
+:::
+
+### Global Analysis
+
+Global analyses summarize a statistic across the entire field of view. This means it reflects an average statistic and might not be reflective of local heterogeneities [@Emons2024-pasta].
+
+#### Correlation
+
+One option in point pattern analysis is to analyse the correlation of marks. Like this, e.g., a clustering or spacing of cells can be determined relative to a completely spatially random (CSR) process. 
+
+::: {.callout-note collapse="true" title="Complete spatial randomness"}
+
+Complete spatial randomness is the null scenario for a point pattern. 
+It is characterized by two key properties:
+
+- Homogeneity: The intensity of points is homogeneous in space.
+- Independence: The points in one region do not influence the distribution of points in another region.
+
+[@Baddeley2015 pp. 199 ff.]
+
+:::
+
+##### Ripley's $K$
+
+Ripley's $K$ is a well established function to assess correlation in a point pattern. It can be calculated within a mark or across marks. In essence, Ripley's $K$ quantifies the average number of points that fall in a $r$-neighbourhood of a chosen mark [@Ripley1976; @Baddeley2015 p. 132 ff.].
+
+```{r ripley, message = FALSE, warning = FALSE}
+#| fig-width: 15
+#| fig-height: 10
+
+resCross <- calcCrossMetricPerFov(
+  spe,
+  selection = c("DCIS_1", "DCIS_2", "Invasive_Tumor"),
+  subsetby = 'sample_id',
+  fun = 'Kcross',
+  marks = 'Cluster',
+  rSeq = seq(0, 500, length.out = 100),
+  by = c("sample_id", "Sample")
+)
+
+plotCrossMetricPerFov(
+  resCross,
+  theo = TRUE,
+  correction = "border",
+  x = "r",
+  imageId = 'sample_id'
+)
+```
+
+This plot shows Ripley's $K$ function corrected for inhomogeneities of the chosen marks. The diagonal is Ripley's $K$ function among the three cell types themselves and the off diagonal plots show the cross type combinations. We note that all cell types, ductal carcinoma in situ 1 (DCIS 1),  ductal carcinoma in situ 2 (DCIS 2) and invasive tumor cells show a clear interaction among themselves, even when correcting for the inhomogeneity. DCIS 1 and invasive tumor cells show spacing, meaning there are less invasive tumor cells found in DCIS 1 than expect under CSR. However, DCIS 2 and invasive tumor cells show a distribution that is completely spatially random in a $500 µm$ $r$-neighbourhood.  
+
+#### Spacing
+
+A complementary approach to correlation analysis is spacing. There are three main distance types [@Baddeley2015 p. 255]:
+
+- pairwise distances: distances between all pairs of points
+- nearest-neighbor distances: distance to the nearest point of the query point
+- empty-space distances: distance from a reference location to the nearest point
+
+##### Nearest-neighbour distance function $G$
+
+The nearest neighbor function $G$ quantifies the average nearest-neighbor distance over a radius range $r$ [@Baddeley2015 p. 262].
+
+```{r nndist, message = FALSE, warning = FALSE}
+#| fig-width: 15
+#| fig-height: 10
+
+resCross <- calcCrossMetricPerFov(
+  spe,
+  selection = c("DCIS_1", "DCIS_2", "Invasive_Tumor"),
+  subsetby = 'sample_id',
+  fun = 'Gcross',
+  marks = 'Cluster',
+  rSeq = seq(0, 100, length.out = 100),
+  by = c("sample_id", "Sample")
+)
+
+plotCrossMetricPerFov(
+  resCross,
+  theo = TRUE,
+  correction = "km",
+  x = "r",
+  imageId = 'sample_id'
+)
+```
+
+In terms of spacing, the interpretation is a bit different. Still, the diagonal shows that all cell types are more clustered than expected if the patterns were completely spatially random. Comparing now DCIS 1 and DCIS 2 with invasive tumor cells, we see that both are more spaced than expect at random. However, the spacing is stronger for DCIS 1  and invasive tumor cells. At small radii, DCIS 2 and invasive tumor are distributed close to random.
+
+The analysis with Ripley's $K$ and the $G$ function are not contradictory. $G$ functions summarize shorter scale interactions than $K$ functions [@Baddeley2015 p. 295]. 
+
+### Local Analysis
+
+#### Local indicators of spatial association
+
+The metrics shown before are an average over the entire window $W$. @Anselin1995 proposed an alternative approach which is termed local indicators of spatial association (LISA). Instead of a global average LISA shows the local contributions of each point to the overall metric [@Baddeley2015 p. 247].  This is a general concept not only for point pattern analysis but for lattice data analysis as well [@Anselin1995; @Anselin2019].
+
+```{r localK-1, warning=FALSE, fig.width=6, fig.height=4}
+# subset to only Invasive tumor cells 
+ppSub <- subset(pp, marks %in% "Invasive_Tumor")
+# restrict to a smaller window for computational reasons
+Window(ppSub) <- owin(c(3500, 7524.087), c(1200, 5475.691))
+# plot the point pattern
+plot(ppSub)
+```
+
+```{r localK-2, message=FALSE, fig.width=8, fig.height=3}
+# calculate LISA K curves
+resLocal <- localK(ppSub, verbose=FALSE) 
+
+# code adapted from 
+# https://robinsonlabuzh.github.io/
+# pasta/01-imaging-univar-ppSOD.html
+
+df <- resLocal |>
+    as.data.frame() |>
+    pivot_longer(
+        iso0001:iso1408, 
+        names_to="curve") 
+
+sel <- df %>% 
+    filter(r > 700.5630 & r < 702.4388) %>%
+    mutate(sel=value) %>% select(curve, sel)
+
+df <- df %>% left_join(sel)
+
+thm <- list(
+    theme_light(),
+    theme(legend.position="none"),
+    scale_colour_viridis_c())
+
+p <- ggplot(df, aes(r, value, group=curve, col=sel)) +
+    geom_line() +
+    geom_line(aes(y=theo), linetype=2, col="darkgrey") +
+    geom_vline(xintercept=700) +
+    thm
+
+df <- data.frame(
+    x=ppSub$x, y=ppSub$y, 
+    sel=unique(sel)$sel)
+
+q <- ggplot(df, aes(x, y, col = sel)) +
+    coord_equal(expand=FALSE) +
+    geom_point(size = 1) + 
+    thm
+ 
+p | q
+```
+
+The LISA Ripley's $K$ are colored by their value at $r = 700$. We note that the LISA Ripley's $K$ gives two populations of curves. Those curves that increase at radii $r<500 µm$ above the CSR line indicated in grey and the other curves that remain either below the grey CSR line or increase after $r>500µm$. 
+
+If the values at $r=700$ of the curves are projected back into the physical space, we note that the curves above the grey CSR line are the highly clustered cells in the bottom left. The other curves are the more spaced cells.

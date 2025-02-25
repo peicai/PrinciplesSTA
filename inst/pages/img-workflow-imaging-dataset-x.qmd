@@ -1,8 +1,0 @@
-# Workflow: Imaging-based dataset {#sec-img-workflow-imaging-dataset-x}
-
-## Introduction
-
-Workflow for imaging-based spatial transcriptomics dataset
-
-
-## References {.unnumbered}

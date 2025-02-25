@@ -1,0 +1,55 @@
+# Chapter title
+
+## Preamble
+
+### Introduction
+
+> Start with some words on what motivates this chapter.
+
+### Dependencies
+
+> Should consist of 1-2 chunks that set up the computational environment (libraries, parallelizaton, seed, etc.) and (if applicable) load data from earlier chapter(s).
+
+```{r loading}
+set.seed(77)
+library(ggplot2)
+library(BiocParallel)
+bp <- MulticoreParam(10)
+se <- readRDS("obj.rds")
+```
+
+## 1st section
+
+> Please stick to an 80-character limit in code chunks, and use `BiocStyle` when mentioning any Bioc/CRAN/GH packages.
+
+## 2nd section
+
+> To keep things concise, use a collapsed box when you see fit (e.g., more details, advanced content, etc.):
+
+::: {.callout-note collapse="true" title="itbeme"}
+
+Anything can go in here (text/math, code chunks)...
+
+```r
+# do some fancy things
+```
+
+:::
+
+## Appendix
+
+### Saving {.unnumbered}
+
+> If applicable, save objects for downstream.
+
+```{r saving}
+saveRDS(obj, "xxx-foo.rds")
+```
+
+### Benchmarks {.unnumbered}
+
+> Bullet list of benchmark papers, ideally giving a 1-2 sentence summary of what's being compared (e.g., how many methods/datasets, which technologies, etc.).
+
+### References {.unnumbered}
+
+> Auto-populated; add nothing.

@@ -1,0 +1,194 @@
+# Normalization, feature selection, dimensionality reduction {#sec-seq-norm-feat-dimred}
+
+
+## Preamble
+
+### Introduction
+
+This chapter demonstrates methods for several data processing steps -- normalization, feature selection, and dimensionality reduction -- that are required before downstream analysis methods can be applied.
+
+We use methods from the `r BiocStyle::Biocpkg("scater")` [@McCarthy2017] and `r BiocStyle::Biocpkg("scran")` [@Lun2016] packages, which were originally developed for single-cell RNA sequencing data, with the (simplified) assumption that these methods can be applied to spot-based spatial transcriptomics data by treating spots as equivalent to cells.
+
+In addition, we discuss alternative spatially-aware methods, which take into account spatial information in spatial transcriptomics data.
+
+
+### Dependencies
+
+```{r deps, message=FALSE, warning=FALSE}
+library(scater)
+library(scran)
+library(SpatialExperiment)
+library(ggspavis)
+
+# load previously saved data
+(spe <- readRDS("seq-spe_load.rds"))
+```
+
+
+## Normalization {#sec-seq-normalization}
+
+### Non-spatial
+
+The simplest approach is to calculate log-transformed normalized counts ("logcounts") using library size factors, treating each spot as equivalent to a single cell. This approach is simple and fast, and generally provides a good baseline. However, in some datasets, the (over)-simplified assumption of each spot being equivalent to a single cell will not be appropriate. This example uses the `scater` [@McCarthy2017] and `scran` [@Lun2016] packages.
+
+Note that some alternative non-spatial methods from single-cell workflows (e.g. normalization by deconvolution) are less appropriate for spot-based spatial transcriptomics data, since spots can contain multiple cells from multiple cell types, and datasets can contain multiple samples (e.g. multiple tissue sections, resulting in sample-specific clustering).
+
+[Library size-based normalization was originally developed for scRNA-seq data, and makes the assumption that spots are equivalent to single cells; this has been shown to be problematic because *"library size confounds [spatial] biology"* [@Bhuva2024].]{.aside}
+
+```{r log, message=FALSE, fig.height=3.5}
+# calculate library size factors
+spe <- computeLibraryFactors(spe)
+
+summary(sizeFactors(spe))
+hist(sizeFactors(spe), breaks = 20)
+
+# calculate 'logcounts'; these will be added as an additional 'assay'
+spe <- logNormCounts(spe)
+
+assayNames(spe)
+```
+
+
+### Spatially-aware
+
+`r BiocStyle::Biocpkg("SpaNorm")` [@Salim2024-SpaNorm] was developed for spatial transcriptomics data specifically, and uses a gene-wise model (e.g., negative binomial) in which variation is decomposed into a library size-dependent (technical) and -independent (biological) component.
+
+
+## Feature selection {#sec-seq-feature-selection}
+
+### Non-spatial: Highly variable genes (HVGs)
+
+Here, we re-use feature selection methods from scRNA-seq workflows to identify a set of top 'highly variable genes' (HVGs). These will be used as the input for subsequent steps, including dimensionality reduction and clustering. In this example, we use the `scran` package [@Lun2016] to identify HVGs. As above, this makes the simplified assumption that spots can be treated as equivalent to single cells.
+
+[Note that HVGs are defined based only on molecular features (i.e. gene expression), and do not take any spatial information into account.
+If the biologically meaningful spatial information in this dataset mainly reflects spatial distributions of cell types (defined by gene expression), then relying on HVGs for downstream analyses may be sufficient.
+However, many datasets contain further spatial structure that is not captured in this way, which may be investigated using spatially-aware methods such as identifying spatially variable genes (SVGs).]{.aside}
+
+To identify HVGs, we first remove mitochondrial genes, since these are very highly expressed in this dataset and are not of main biological interest.
+
+```{r mt}
+# identify mitochondrial genes
+nm <- rowData(spe)$gene_name
+mt <- grepl("^MT-", nm, ignore.case = TRUE)
+table(mt)
+
+# remove
+spe <- spe[!mt, ]
+dim(spe)
+```
+
+
+Next, apply methods from `r BiocStyle::Biocpkg("scran")`. This gives a list of HVGs, which can be used as the input for subsequent steps. The parameter `prop` defines how many HVGs to select. For example `prop = 0.1` returns the top 10%.
+
+```{r hvg, message=FALSE, fig.width=6, fig.height=5}
+# fit mean-variance relationship, decomposing 
+# variance into technical and biological components
+dec <- modelGeneVar(spe)
+
+# select top HVGs (i.e. variance above trend)
+sel <- getTopHVGs(dec, prop = 0.1)
+length(sel)
+```
+
+```{r plt-hvg, fig.width=5, fig.height=4}
+#| code-fold: true
+# visualize mean-variance relationship
+par(mar = c(4, 4, 0, 0))
+fit <- metadata(dec)
+plot(fit$mean, fit$var, cex = 0.5, 
+     xlab = "mean expression", ylab = "variance")
+points(dec[sel, "mean"], dec[sel, "total"], 
+       cex = 0.5, col = "dodgerblue")
+curve(fit$trend(x), add = TRUE, lwd = 2, col = "tomato")
+```
+
+
+### Spatially-aware: Spatially variable genes (SVGs)
+
+Alternatively, spatially-aware methods can instead be used to identify 'spatially variable genes' (SVGs), either instead of or complementary to HVGs.
+
+A number of methods have been developed to identify SVGs. These methods take the spatial information in spatial transcriptomics measurements into account, which can provide a more biologically informative ranking of genes.
+
+For more details and examples, see @sec-crs-spatially-variable.
+
+
+## Dimensionality reduction {#sec-seq-dimensionality-reduction}
+
+Dimensionality reduction methods are used to generate the inputs for clustering and further downstream analysis steps, as well as for visualization.
+
+
+### Principal component analysis (PCA)
+
+A standard approach is to apply principal component analysis (PCA) to the set of top HVGs, and retain the top 50 principal components (PCs) for subsequent steps.
+
+This is done for two main reasons: (i) to reduce noise due to random variation in expression of biologically uninformative genes, which are assumed to have expression patterns independent of each other, and (ii) to improve computational efficiency.
+
+We use the fast implementation of PCA provided in the `r BiocStyle::Biocpkg("scater")` package [@McCarthy2017]. This implementation uses randomization, and therefore requires setting a random seed for reproducibility.
+
+```{r pca}
+set.seed(123)
+spe <- runPCA(spe, subset_row = sel)
+
+reducedDimNames(spe)
+dim(reducedDim(spe, "PCA"))
+```
+
+
+
+### Uniform Manifold Approximation and Projection (UMAP)
+
+The UMAP algorithm is often used for visualization purposes (although interpretation of the UMAP dimensions is difficult and can sometimes be misleading).
+
+Run UMAP on the set of top 50 PCs, retaining the first two UMAP components to be used for visualization purposes.
+
+```{r umap}
+# compute UMAP (by default, on top 50 PCs)
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+reducedDimNames(spe)
+dim(reducedDim(spe, "UMAP"))
+
+# update column names for easier plotting
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+```
+
+
+## Visualizations
+
+Generate a PCA plot using plotting functions from the `r BiocStyle::Biocpkg("scater")` package [@McCarthy2017].
+
+```{r plt-pcs, fig.height=4}
+# temporary until QC chapter updated
+spe <- addPerCellQC(spe)
+
+plotReducedDim(spe, "PCA", color_by = "sum") + coord_equal() + theme_minimal()
+```
+
+
+Alternatively, use plotting functions from the [ggspavis](https://bioconductor.org/packages/ggspavis) package.
+
+```{r, fig.width=4, fig.height=4}
+# top 2 PCs
+plotDimRed(spe, plot_type = "PCA")
+```
+
+```{r, fig.width=4, fig.height=4}
+# top 2 UMAP dimensions
+plotDimRed(spe, plot_type = "UMAP")
+```
+
+
+## Appendix
+
+### Saving
+
+Save data object for re-use in later chapters.
+
+```{r}
+saveRDS(spe, "seq-spe_dr.rds")
+```
+
+
+### References {.unnumbered}
+

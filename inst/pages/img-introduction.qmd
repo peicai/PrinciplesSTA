@@ -1,0 +1,77 @@
+# Introduction {#sec-img-introduction}
+
+## Background
+
+Imaging-based ST assays have gone from resolving 100s to 1000s of features.
+Their commercialization by Vizgen, NanoString, and 10x Genomics has made these data increasingly popular. 
+In general, imaging-based ST platforms rely on multiplexed error-robust fluorescence *in situ* hybridization (FISH), as originally proposed by @Moffitt2016-MERFISH.
+Briefly, targets are preassigned a barcode of (multi-color) 'on' and (no-color) 'off' bits, whereas barcodes are optimized to differ from each other by some bits as to minimize readout errors.
+After iterative imaging-bleaching, individual reporter binding events are identified computationally (spot calling).
+Aligning spots along the image z-stack then allows to identify individual targets based on a predefined barcoding scheme.
+
+```{r echo=FALSE, out.width="100%", fig.lab="test", fig.cap="**Schematic of barcoded FISH** RNA targets are preassigned a sequence (= barcode) of 'on' and 'off' rounds. In each imaging round, a subset of targets is bound by a complementary probe, which is linked to a fluorescent reporter. After multiple rounds of imaging and stripping, images are decoded computationally to call targets. [*source: https://moffittlab.github.io*]"}
+knitr::include_graphics("https://moffittlab.github.io/img/MERFISH%20Introduction-01.png")
+```
+
+::: {.callout-note collapse="true" title="high-plex barcoding"}
+1,000-plex CosMx, for example, employs 64-bit barcodes (4 immunofluorescent reports over 16 cycles of imaging-bleaching) with a Hamming weight and distance of 4 (i.e., every target is 'on' in 4 rounds and 'off' in 12 rounds; each barcode differs from all others by 4 bits as to minimize RNA decoding errors).
+Combinatorially, a 64-bit barcoding scheme is sufficient to encode a much larger number of targets, namely, ~20,000 protein-coding genes.
+:::
+
+Commercially available panels can typically include three types of barcodes:
+
+- **RNA targets** determine the 'plexity' of the panel.
+- **Negative probes** serve to quantify non-specific binding.
+- **System controls** serve to quantify spot calling errors.
+
+::: {.callout-note collapse="true" title="non-RNA targets"}
+Modeled after synthetic sequences from the External RNA Controls Consortium (ERCC), **negative probes** contain hybridization regions that are not complementary to the genome or transcriptome of the organism under study; their detection thus corresponds to non-specific ISH probe hybridization events (e.g., in 'sticky' regions of the tissue). 
+
+Depending on the barcoding scheme (number of bits, Hamming weight/distance), a number of barcodes will be left unoccupied; these **system controls** (also referred to as blank or false codes) serve to quantify misidentification of reporter readout.
+:::
+
+## Platforms
+
+
+### Xenium (10x Genomics)
+
+10x Genomics [Xenium platform](https://www.10xgenomics.com/platforms/xenium) employs rolling circle amplification (RCA) to boost fluorescent signals from reporter-binding events, thereby improving overall spot calling sensitivity.
+
+<!-- Early [panels](https://www.10xgenomics.com/products/xenium-panels) were low-plex (100s of targets) while allowing for flexible (and relatively affordable) customization; more recently, a 5,000-plex panel has become available. -->
+
+Xenium gives an imageable area of 12mm x 24 mm, although slightly less to avoid fiducial markers. Several pre-designed panels are available, including a "Pan Tissue and Pathways" for both mouse and human, which both include over 5000 genes and there is a possibility to custom design an additional 100 genes. More focused panels are available for human brain, lung, colon and breast tissue as well as cancer immunological subpopulations; for mouse, focused brain and multi-tissue panels are available.
+
+
+### CosMx (NanoString)
+
+Unlike Xenium, CosMx [@He2022-CosMx] does not rely on RCA. As a result, CosMx tends to be less sensitive than Xenium (albeit higher-plex at present). Furthermore, segmentation is performed separately for each FOV (without stitching). This results in a variety of technical artefacts, such as fractured and possibly duplicated cells near FOV borders.
+
+<!-- The platform currently supports universal 1,000- and 6,000-plex [panels](https://nanostring.com/products/cosmx-spatial-molecular-imager/cosmx-rna-assays), as well as 1,000-plex panels tailored to human immuno-oncology and mouse neuronal tissue; a whole-transcriptome (~18,000-plex) panel is underway. -->
+
+The NanoString CosMx platform gives an imageable area of 15x20 mm and allows up to 6000 RNAs (and now up to 68 proteins) to be assayed in a spatial context. Their human "discovery" 6000 gene panel is currently being expanded to full-transcriptome (>18,000 targets), which should become available in 2025. Other more targeted panels are available, including a 1000-gene "Universal Cell Characterization", a focused 100-gene immuno-oncology panel or a 1000-gene mouse neuroscience panel. In addition, custom panels are available in either an add-on (up to 50 genes) or standalone (up to 300 genes) format. (Antibody-based) Protein panels are currently available for human immuno-oncology and mouse neuroscience contexts.
+
+### MERSCOPE (Vizgen)
+
+The [Vizgen MERSCOPE platform](https://vizgen.com/products/), among the fluorescence-based targeted spatial transcriptomics platforms, allows the highest resolution (≤20 nm), while also providing a high capacity for multiplexing, with (customizable) panels containing up to 1000 genes, and an imageable area of 1 cm^2^. MERSCOPE was recently shown to be amongst the most sensitive in a recent head-to-head comparison [@Hartman2024] using mouse brain tissue.
+
+<!--Davide:
+## Pre-processing / understanding the input data structure
+
+- Briefly explain the logic behind sequential FISH
+- Understand that the final transcript xy coordinates are the results of multiple round of images, which are technically the raw data, but are typically not accessed
+- Hence, for the purpose of this book, the raw data may be considered the xy-coordinates of each transcript, which typically come in the form of a csv (or parquet?) transcript file
+- In addition, the raw data typically include immunofluoresce signals (acquired as images in TIFF or ZARR format) from a nucleus stain (e.g., DNA or DAPI) and optionally cell surface stains (e.g., CD3, PanCK, ...). These signals are used for cell (and/or nucleus) segmentation, typically done with deep learning methods such as CellPose.
+- A final preprocessing steps assigns transcripts to segmented regions (cells and optionally nuclei) and counts how many transcripts per gene are present in each cell.
+- Processed files (typically the starting point of a Bioconductor analysis) include: transcript files, segmentation mask, expression matrix (cell x gene), and cell metadata (with xy coordinates of their centroids), and optionally a polygon file which represents the cell boundaries.
+-->
+
+## Resources
+
+- Available datasets
+  - [Xenium (10x Genomics)](https://www.10xgenomics.com/datasets)
+  - [CosMx (NanoString)](https://nanostring.com/products/cosmx-spatial-molecular-imager/ffpe-dataset/)
+  - [MERSCOPE (Vizgen)](https://vizgen.com/data-release-program)
+- Platform-specific methods
+  - [CosMx analysis](https://nanostring-biostats.github.io/CosMx-Analysis-Scratch-Space)
+  
+## References {.unnumbered}

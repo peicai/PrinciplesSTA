@@ -4,7 +4,7 @@
 #| echo: false
 intro <- tryCatch(
     {
-        description <- packageDescription("PrinciplesSTA")
+        description <- packageDescription("OSTA")
         pkg <- description$Package
         version <- description$Version
         license <- description$License
@@ -26,7 +26,7 @@ intro <- tryCatch(
 
 ## Docker image {-}
 
-A `Docker` image built from this repository is available here: [ghcr.io/lmweber/principlessta](https://ghcr.io/lmweber/principlessta)
+A `Docker` image built from this repository is available here: [ghcr.io/lmweber/osta](https://ghcr.io/lmweber/osta)
 
 ::: {.callout-tip icon='true'}
 ## Get started now
@@ -35,7 +35,7 @@ You can get access to all the packages used in this book in <1 minute, using thi
 
 ```{sh "docker", filename="bash"}
 #| eval: false
-docker run -it ghcr.io/lmweber/principlessta:devel R
+docker run -it ghcr.io/lmweber/osta:devel R
 ```
 
 :::
@@ -51,7 +51,7 @@ docker run \
     --volume <local_folder>:<destination_folder> \
     -e PASSWORD=OHCA \
     -p 8787:8787 \
-    ghcr.io/lmweber/principlessta:devel
+    ghcr.io/lmweber/osta:devel
 ```
 
 The initiated RStudio Server instance will be available at: [https://localhost:8787](https://localhost:8787)

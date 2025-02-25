@@ -1,0 +1,224 @@
+# Neighborhood analysis {#sec-img-neighbors}
+
+## Dependencies
+
+```{r deps, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+library(BiocParallel)
+library(SpatialExperiment)
+# load data from previous section
+spe <- readRDS("img-spe_cl.rds")
+# basic theme for spatial plots
+theme_xy <- list(
+    coord_equal(expand=FALSE), 
+    theme_void(), theme(
+        plot.margin=margin(l=5),
+        legend.key=element_blank(),
+        panel.background=element_rect(fill="black")))
+```
+
+## Nearest neighbors
+
+Custom spatial analyses may rely on identifying nearest neighbors (NNs) of cells.
+We recommend `r BiocStyle::CRANpkg("RANN")` for this purpose, which finds NNs in **$O(N\log N)$ time for $N$ cells** (c.f., conventional approaches would take $O(N^2)$ time) by relying on a Approximate Near Neighbor (ANN) C++ library.
+Furthermore, there is support for **exact, approximate, and fixed-radius searchers**.
+The latter is of particular interest in biology; e.g., one might require $k$NNs to lie within a biologically sensible distance as to avoid consideration of cells that are far-off, especially in sparse regions or at tissue borders.
+
+As a toy example, we here compute the $k$NNs between a pair of subpopulations, with and without thresholding on NN distances (`searchtype="radius"`).
+
+- For the first approach, each cell will receive $k$ neighbors exactly,  
+but these may lie within an arbitrary distance.
+
+- For the second approach, cells will receive $\leq k$ neighbors,  
+depending on how many cells lie within a radius $r$.
+
+```{r nns-calc, message=FALSE, results="hold"}
+library(RANN)
+k <- 10 # num. neighbors
+r <- 50 # dist. threshold
+i <- spe$k == 1 # source
+j <- spe$k == 4 # target
+xy <- spatialCoords(spe)
+# k-NN search: all cells have k neighbors
+ns_k <- nn2(xy[j, ], xy[i, ], k=k)
+is_k <- ns_k$nn.idx
+all(rowSums(is_k > 0) == k) 
+# w/ fixed-radius: cells have 0-k neighbors
+ns_r <- nn2(xy[j, ], xy[i, ], k=k, searchtype="radius", r=r)
+is_r <- ns_r$nn.idx
+range(rowSums(is_r > 0))
+```
+
+The neighbors obtained via fixed-radius search (right) are less scattered than those obtained for unlimited distances (left); the former are arguably more meaningful in a biological context:
+
+```{r nns-plot, fig.width=8, fig.height=3, fig.cap="Results of kNN searches. Left: basic kNN search, highlighting source (pink) and target cells (gold). Right: kNN search with same k, but thresholding on neighbor distances."}
+#| code-fold: true
+df <- data.frame(xy, colData(spe))
+p0 <- ggplot(df, aes(x_centroid, y_centroid)) + 
+    geom_point(data=df, col="navy", shape=16, size=0) +
+    geom_point(data=df[i, ], col="magenta", shape=16, size=0) 
+p1 <- p0 + geom_point(
+    data=df[which(j)[is_k], ], 
+    col="gold", shape=16, size=0) +
+    ggtitle("k-nearest neighbors")
+p2 <- p0 + geom_point(
+    data=df[which(j)[is_r], ], 
+    col="gold", shape=16, size=0) +
+    ggtitle("fixed-radius search")
+(p1 | p2) + plot_layout(nrow=1) & theme_xy
+```
+
+::: {.callout-note collapse="true" title="exhaustive fixed-radius search"}
+Note that, we could also set a very large `k` in order to identify *all* neighbors within a radius `r`.
+In order to prevent unnecessarily costly searches, it is sensible to estimate how many neighbors we would expect, and to set `k` accordingly. 
+`nn2()` will otherwise find each cells' $k$NNs, and set the indices of those with a distance $>r$ to 0.
+
+As an exemplary approach, we here sample 1,000 cells to estimate the highest number of NNs obtained, considering *half* of all target cells as potential NNs:
+
+```{r nns-note-test}
+# test search
+.i <- sample(which(i), 1e3)
+ns <- nn2(
+    xy[j, ], xy[.i, ], 
+    k=round(sum(j)/2), 
+    searchtype="radius", r=r)
+(.k <- max(rowSums(ns$nn.idx > 0)))
+```
+
+For our actual search, we then set `k` to be twice our estimate.
+As a final spot-check, we make sure that all cells have fewer than `k` NNs, since we might otherwise be missing some.
+
+```{r nns-note-real}
+# real search
+ns <- nn2(
+    xy[j, ], xy[i, ], 
+    k=k <- ceiling(2*.k), 
+    searchtype="radius", r=r)
+max(rowSums(ns$nn.idx > 0)) < k
+```
+
+:::
+
+## Spatial contexts
+
+Spatial niche analysis aims at identifying regions of homogeneous composition by grouping cells based on their microenvironment.
+To this end, methods such as `r BiocStyle::Biocpkg("imcRtools")` [@Windhager2023-imcRtools] rely on a $k$-nearest-neighbor ($k$NN) graph (based on Euclidean cell-to-cell distances), and clustering cells using common clustering algorithms (according to their neighborhood's subpopulation frequencies).
+
+Here, we demonstrate how to identify spatial contexts based on $k$-means clustering on cluster frequencies among (Euclidean) $k$NNs.
+We recommend readers consult `imcRtools`' documentation for a much wider range of visualizations and downstream analyses in this context.
+
+```{r imcRtools-calc, message=FALSE}
+library(imcRtools)
+# construct kNN-graph based on Euclidean distances
+sqe <- buildSpatialGraph(spe, 
+    coords=spatialCoordsNames(spe),
+    img_id="sample_id", type="knn", k=10)
+# compute cluster frequencies among each cell's kNNs
+sqe <- aggregateNeighbors(sqe, 
+    colPairName="knn_interaction_graph", 
+    aggregate_by="metadata", count_by="k")
+# view composition of 1st cell's kNNs
+unlist(sqe$aggregatedNeighbors[1, ]) 
+# cluster cells by neighborhood compositions
+ctx <- kmeans(sqe$aggregatedNeighbors, centers=5)
+table(sqe$ctx <- factor(ctx$cluster))
+```
+
+Let's quickly view the subpopulation composition of each spatial context:
+
+```{r imcRtools-show}
+df <- data.frame(spatialCoords(sqe), colData(sqe))
+round(100*with(df, prop.table(table(k, ctx), 2)), 2)
+```
+
+Secondly, let's visualize the obtained spatial contexts in space:
+
+```{r imcRtools-plot, fig.width=9, fig.height=3, fig.cap="Tissue plot with cells colored by cluster (left) and spatial context (right) based on $k$-means clustering of cluster frequencies among each cell's (Euclidean) $k$NNs."}
+#| code-fold: true
+pal_k <- brewer.pal(nlevels(df$k), "Paired")
+pal_c <- c("blue", "cyan", "gold", "magenta", "maroon")
+ggplot(df, aes(x_centroid, y_centroid, col=k)) + 
+    scale_color_manual(values=pal_k) +
+ggplot(df, aes(x_centroid, y_centroid, col=ctx)) + 
+    scale_color_manual(values=pal_c) +
+plot_layout(nrow=1) &
+    geom_point(shape=16, size=0) &
+    guides(col=guide_legend(override.aes=list(size=2))) &
+    theme_xy & theme(legend.key.size=unit(0.5, "lines"))
+```
+
+## Co-localization
+
+`r BiocStyle::Biocpkg("hoodscanR")` [@Liu2024-hoodscanR] also relies on a (Euclidean) $k$NN graph to estimate the probability of each cell associating with its NNs.
+The resulting probability matrix (rows=cells, columns=NNs) can, in turn, be used to assess co-occurrence of subpopulations. 
+
+```{r hoodscanR-calc, message=FALSE}
+library(hoodscanR)
+sqe <- readHoodData(spe, anno_col="k")
+nbs <- findNearCells(sqe, k=100)
+mtx <- scanHoods(nbs$distance)      
+grp <- mergeByGroup(mtx, nbs$cells) 
+sqe <- mergeHoodSpe(sqe, grp)       
+```
+
+To perform neighborhood co-localization analysis, `plotColocal()` computes the Pearson correlation of probability distribution between cells.
+Here, **high/low values indicate attraction/repulsion** between clusters:
+
+```{r hoodscanR-plot-corr, message=FALSE, fig.width=3.5, fig.height=3}
+library(pheatmap)
+cor <- plotColocal(sqe, pm_cols=colnames(grp), return_matrix=TRUE)
+pal <- colorRampPalette(rev(hcl.colors(9, "Roma")))(100)
+pheatmap(cor, 
+    cellwidth=15, cellheight=15, 
+    treeheight_row=5, treeheight_col=5,
+    col=pal, breaks=seq(-1, 1, length=100))
+```
+
+::: {.callout-note title="measuring local mixing" collapse="true"}
+
+Downstream, `calcMetrics()` can be used to calculate cell-level [entropy](https://en.wikipedia.org/wiki/entropy_(information_theory)) and [perplexity](https://en.wikipedia.org/wiki/perplexity),
+which both measure the mixing of cellular neighborhoods.
+Here, **low/high values indicate heterogeneity/homogeneity** of a cell's local neighborhood:
+
+```{r hoodscanR-calc-mets}
+sqe <- calcMetrics(sqe, pm_cols=colnames(grp))
+```
+
+```{r hoodscanR-plot-mets-xy, fig.width=8, fig.height=3, fig.cap="Tissue plots with cells colored by entropy and perplexity, z-scaled across cells (capped at 2 SDs)."}
+#| code-fold: true
+df <- data.frame(colData(sqe), k=spe$k, spatialCoords(spe))
+vs <- c("perplexity", "entropy")
+fd <- df |>
+    mutate(across(all_of(vs), scale)) |>
+    pivot_longer(all_of(vs)) |>
+    # threshold at 2 SDs for clearer visualization
+    mutate(value=case_when(abs(value) > 2 ~ sign(value)*2, TRUE ~ value))
+ggplot(fd, aes(x_centroid, y_centroid, col=value)) +
+    facet_grid(~name) + geom_point(shape=16, size=0) + 
+    theme_xy + theme(legend.key.size=unit(0.5, "lines")) +
+    scale_color_gradient2("z-scaled\nvalue", low="cyan", mid="navy", high="magenta") 
+```
+
+Stratifying these values by subpopulation, we can observe that clusters forming distinct aggregates in space are lowest in entropy/perplexity (i.e., the most homogeneous locally):
+
+```{r hoodscanR-plot-mets-k, fig.width=7, fig.height=2.5, fig.cap="Boxplot of entropy and perplexity, stratified by cluster assignment and z-scaled across cells (capped at 2 SDs)."}
+#| code-fold: true
+ggplot(fd, aes(k, value, fill=k)) +
+    facet_wrap(~name) + 
+    scale_fill_manual(values=pal_k) + 
+    geom_boxplot(outlier.stroke=0, key_glyph="point") +
+    scale_y_continuous("z-scaled value", limits=c(-2, 2)) +
+    guides(fill=guide_legend(override.aes=list(shape=21, size=2))) +
+    theme_bw() + theme(
+        axis.title.x=element_blank(),
+        panel.grid.minor=element_blank(),
+        legend.key.size=unit(0.5, "lines"))
+```
+
+:::
+
+## References {.unnumbered}

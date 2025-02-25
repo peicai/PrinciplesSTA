@@ -1,13 +1,19 @@
 name: biocbook
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - devel
+      - devel-*
       - RELEASE_**
+      - sandbox
+    paths-ignore:
+      - 'README.md' 
+      - 'deps.Dockerfile'
 
 jobs:
-  build-push:
+  build:
     runs-on: ubuntu-latest
     name: build-book (${{ github.ref_name }})
     permissions:
@@ -15,17 +21,33 @@ jobs:
       packages: write
 
     steps:
+      - name: Free root space
+        uses: almahmoud/free-root-space@main
+        with:
+          verbose: true
       
       - name: 🧾 Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: 🏷 Set Bioc version
+        run: |
+          branch="${{ github.ref_name }}"
+          if [[ "$branch" == "devel" || "$branch" =~ ^RELEASE_ ]]; then
+            # Remove everything after and including '-' if present
+            version=${branch%%-*}
+            echo "BIOC_VERSION=${version}" >> "${GITHUB_ENV}"
+          else
+            echo "BIOC_VERSION=devel" >> "${GITHUB_ENV}"
+          fi
 
       - name: ⏳ Collect Workflow Telemetry
-        uses: runforesight/workflow-telemetry-action@v1
+        uses: catchpoint/workflow-telemetry-action@v2
 
       - name: 🐳 Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
+
       - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
   
       - name: 📝 Get book info
         id: info
@@ -41,71 +63,78 @@ jobs:
           echo pkgversion=$(grep -m1 -E '^Version: +' DESCRIPTION | sed -E 's/.*: +//') >> "${GITHUB_ENV}"
 
       - name: 🔐 Log in to the Github Container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ env.owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
 
       - name: 🏷 Get metadata for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ env.owner }}/${{ env.pkgname }}
           tags: |
-            ${{ github.ref_name }}
-            ${{ env.pkgversion }}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'devel') }}
+            type=raw,value={{branch}}
 
-      - name: 📦 Install, build and check package in local Docker image
+      - name: 📦 Build and push book image
         id: docker
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            BIOC_VERSION=${{ github.ref_name }}
-
-      - name: 🚀 Push local Docker image to ghcr.io
-        uses: docker/build-push-action@v4
-        with:
-          context: .
+          file: biocbook.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            BIOC_VERSION=${{ github.ref_name }}
+            BRANCH=${{ steps.extract_branch.outputs.branch }}
+            OWNER=${{ env.owner }}
 
       - name: 📚 Recover pkg artifacts generated during build in local Docker container (pkg bundle and book) 
-        env:
-          IMG: ${{ steps.docker.outputs.ImageID }}
         run: |
-          SHA=$(docker container create ${{ env.IMG }})
-          docker container cp ${SHA}:/${{ env.Pkgname }}_${{ env.pkgversion }}.tar.gz .
+          IMG_REF="$(echo ${{ steps.meta.outputs.tags }} | cut -d':' -f1)@$(echo ${{ steps.docker.outputs.ImageID }})"
+          docker pull $IMG_REF
+          SHA=$(docker container create $IMG_REF)
+          docker container cp ${SHA}:/opt/pkg/${{ env.Pkgname }}_${{ env.pkgversion }}.tar.gz .
           tar --extract --gzip --file ${{ env.Pkgname }}_${{ env.pkgversion }}.tar.gz
           echo bundle_path=${{ env.Pkgname }}_${{ env.pkgversion }}.tar.gz >> "${GITHUB_ENV}"
           echo book_path=${{ env.Pkgname }}/inst/doc/book/ >> "${GITHUB_ENV}"
 
       - name: 🏷 Get gh-branch directory to deploy to
         run: |
-          echo target_folder=$(echo ${{ github.ref_name }} | sed 's,RELEASE_,,' | tr '_' '.') >> "${GITHUB_ENV}"
+          echo target_folder=$(echo ${{ env.BIOC_VERSION }} | sed 's,RELEASE_,,' | tr '_' '.') >> "${GITHUB_ENV}"
 
-      - name: 🚀 Deploy book to Github Pages on versioned branch
-        uses: JamesIves/github-pages-deploy-action@v4.4.3
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: ${{ env.book_path }}/ 
-          target-folder: docs/${{ env.target_folder }}/ 
-          branch: gh-pages
-          clean: false 
+          path: ${{ env.book_path }}/
 
       - name: 💾 Upload package bundle artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bundle
           path: ${{ env.bundle_path }}
 
-      - name: 💾 Upload book artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: book
-          path: ${{ env.book_path }}
+  deploy:
+    if: github.ref == 'refs/heads/devel'  # deploy only if pushed to 'devel' branch
+    needs: build
+
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

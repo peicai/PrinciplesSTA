@@ -260,3 +260,22 @@ a, .citation a, .footnote-ref {
     color: #666;
   }
 }
+
+/* Bibliography / References ---------------------------- */
+
+/*
+.references {
+  font-size: 10pt;
+}
+*/
+
+/* references headings */
+.unnumbered h3 {
+  font-size: 20pt;
+}
+
+/* references entries */
+.csl-entry {
+  font-size: 10pt;
+  padding-bottom: 6pt;
+}

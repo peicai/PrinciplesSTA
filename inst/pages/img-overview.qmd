@@ -1,5 +1,0 @@
-# Overview {#sec-img-overview}
-
-This part contains a series of chapters describing (i) individual **analysis steps**, followed by (ii) extended **workflows**, for data from imaging-based spatial transcriptomics platforms (see @sec-bkg-spatial-transcriptomics for an overview of the types of technological platforms).
-
-The chapters on the individual analysis steps contain relatively detailed information, including discussion on the purpose of each step, and links to alternative methods. By contrast, the workflow chapters are more condensed, showing how to put together the analysis steps into complete workflows.

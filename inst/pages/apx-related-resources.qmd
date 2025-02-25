@@ -5,7 +5,7 @@
 This chapter provides links to several related resources from the Bioconductor and other communities.
 
 
-## Data preprocessing procedures {#sec-apx-related-resources-data-preprocessing}
+## Data preprocessing procedures
 
 - [**Visium data preprocessing**](https://lmweber.org/Visium-data-preprocessing/): Online book containing details on data preprocessing procedures for spatial transcriptomics data from the 10x Genomics Visium platform (using tools outside R and Bioconductor).
 

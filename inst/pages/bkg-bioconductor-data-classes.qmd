@@ -18,7 +18,7 @@ A summary of the `SpatialExperiment` object structure is shown in the following 
 For more details, see the `SpatialExperiment` package [Bioconductor vignette](https://bioconductor.org/packages/release/bioc/vignettes/SpatialExperiment/inst/doc/SpatialExperiment.html) or the paper describing the class [@Righelli2022].
 
 ```{r, echo = FALSE, out.width = "100%", fig.cap = "Overview of the `SpatialExperiment` data class for storing and manipulating spatial transcriptomics datasets within the Bioconductor framework."}
-knitr::include_graphics("https://raw.githubusercontent.com/lmweber/PrinciplesSTA-resources/main/images/SPE.png")
+knitr::include_graphics("../images/SpatialExperiment.png")
 ```
 
 
@@ -33,7 +33,7 @@ These classes extend `SpatialExperiment` and are compatible with `SpatialExperim
 
 ### SpatialFeatureExperiment
 
-`SpatialFeatureExperiment` is available as a [Bioconductor package](https://bioconductor.org/packages/SpatialFeatureExperiment) and described by the authors in their paper [@Moses2023].
+`SpatialFeatureExperiment` is available as a [Bioconductor package](https://bioconductor.org/packages/SpatialFeatureExperiment) and described by the authors in their paper [@Moses2023-Voyager].
 
 
 ### MoleculeExperiment

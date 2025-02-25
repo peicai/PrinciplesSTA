@@ -1,0 +1,96 @@
+# Spatially variable genes {#sec-crs-spatially-variable}
+
+## Preamble
+
+### Introduction
+
+Methods to identify spatially variable genes (SVGs) aim to find a list of top-ranked genes with strong spatial patterns of expression. These methods can be used as an a spatially-aware alternative to feature selection methods described in @sec-seq-norm-feat-dimred, or to identify individual biologically informative genes as candidates for further experimental follow-up.
+
+Here, we define SVGs as any genes with **spatially correlated patterns of expression** across the tissue area.
+
+Several methods to identify SVGs in ST data have recently been developed, which each have various methodological and computational tradeoffs. These include:
+[Standard spatial statistics such as [Moran's I](https://en.wikipedia.org/wiki/Moran%27s_I) or [Geary's C](https://en.wikipedia.org/wiki/Geary%27s_C) may also be used to rank genes by their observed spatial autocorrelation (see @sec-crs-spat-stat); however, these tend to be too sensitive, since they have not been developed for the specific properties of spatial transcriptomics data.]{.aside}
+
+- R (Bioc): `r BiocStyle::Biocpkg("nnSVG")` [@Weber2023]
+- Python (pip): `r BiocStyle::Githubpkg("Teichlab/SpatialDE")` [@Svensson2018]
+- R (GitHub): `r BiocStyle::Githubpkg("xzhoulab/SPARK")` [@Sun2020] and `SPARK-X` [@Zhu2021]
+
+### Dependencies
+
+```{r deps, message=FALSE, warning=FALSE}
+library(nnSVG)
+library(scater)
+library(ggspavis)
+library(patchwork)
+library(SpatialExperiment)
+(spe <- readRDS("seq-spe_dr.rds"))
+```
+
+## Analysis
+
+Here, we demonstrate a short example showing how to identify a set of top SVGs using `r BiocStyle::Biocpkg("nnSVG")` [@Weber2023], which is available through Bioconductor and can be easily integrated into Bioconductor-based workflows.
+
+In this example, we run `nnSVG` using a small subset of the dataset for faster runtime. We select a subset by subsampling on the set of spots and including stringent filtering for lowly expressed genes. A full analysis using all spots for this dataset and default filtering parameters for Visium data from human brain tissue takes around 45 minutes for one Visium sample on a standard laptop.
+
+```{r sub, message=FALSE}
+# # set random seed for number generation
+# # in order to make results reproducible
+# set.seed(123)
+# # sample 100 spots to decrease runtime in this demo
+# # (note: skip this step in full analysis)
+# n <- 100
+# sub <- spe[, sample(ncol(spe), 100)]
+# # filter lowly expressed genes using stringent 
+# # criteria to decrease runtime in this demo
+# # (note: use default criteria in full analysis)
+# sub <- filter_genes(sub,     # filter for genes with...
+#     filter_genes_ncounts=10, # at least 10 counts in
+#     filter_genes_pcspots=3)  # at least 3% of spots
+# # re-normalize post-filtering
+# sub <- logNormCounts(sub)
+```
+
+```{r nnSVG, cache=TRUE}
+# # run nnSVG
+# set.seed(123)
+# sub <- nnSVG(sub)
+```
+
+```{r res}
+# # extract gene-level results
+# res <- rowData(sub)
+# # show results
+# head(res, 3)
+# # count significant SVGs (at 5% FDR)
+# table(res$padj <= 0.05)
+# # identify top-ranked SVG
+# res$gene_name[res$rank == 1]
+```
+
+## Visualization
+
+```{r plt-xy, message=FALSE, fig.width=10, fig.height=4.5}
+#| code-fold: true
+# # visualize top-n SVGs
+# gs <- res$gene_name[res$rank < 9]
+# ps <- lapply(gs, \(.) 
+#     plotSpots(spe, 
+#         annotate=., 
+#         assay_name="logcounts", 
+#         feature_names="gene_name"))
+# # arrange & prettify
+# wrap_plots(ps, nrow=2) & theme(
+#     legend.key.width=unit(0.4, "lines"), 
+#     legend.key.height=unit(0.8, "lines")) &
+#     scale_color_gradientn(colors=pals::parula())
+```
+
+::: {.callout-note collapse="true" title="Downstream analyses"}
+
+The set of top SVGs from `nnSVG` may then be investigated further, e.g. by plotting the spatial expression of several top genes and by comparing the list of top genes with known gene sets associated with biological processes of interest in the dataset. The set of top SVGs may also be used as the input for further downstream analyses such as spatially-aware clustering to define spatial domains (see @sec-seq-clustering).
+
+:::
+
+## Appendix
+
+### References {.unnumbered}

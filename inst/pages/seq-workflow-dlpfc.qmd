@@ -1,4 +1,4 @@
-# Workflow: Human DLPFC {#sec-seq-workflow-human-dlpfc}
+# Workflow: Human DLPFC {#sec-seq-workflow-dlpfc}
 
 ## Introduction
 
@@ -28,6 +28,8 @@ library(STexampleData)
 # load object
 spe <- Visium_humanDLPFC()
 spe
+# temporary fix
+imgData(spe) <- NULL
 ```
 
 
@@ -125,7 +127,7 @@ dim(spe)
 
 ## Normalization
 
-Calculate log-transformed normalized counts (logcounts) with the library size factors methodology, using methods from `scater` [@McCarthy2017] and `scran` [@Lun2016], making the assumption that spots can be treated as equivalent to cells. For more details, see @sec-seq-normalization.
+Calculate log-transformed normalized counts (logcounts) with the library size factors methodology, using methods from `scater` [@McCarthy2017] and `scran` [@Lun2016], making the assumption that spots can be treated as equivalent to cells. For more details, see @sec-seq-norm-feat-dimred.
 
 ```{r, message=FALSE}
 library(scran)
@@ -148,7 +150,7 @@ assayNames(spe)
 
 ## Feature selection
 
-Identify a set of top highly variable genes (HVGs), which will be used to define cell types. We use methods from `scran` [@Lun2016], treating spots as equivalent to single cells, and considering only molecular features (gene expression) as described in @sec-seq-feature-selection. We also first filter out mitochondrial genes, since these are very highly expressed and not of main biological interest here.
+Identify a set of top highly variable genes (HVGs), which will be used to define cell types. We use methods from `scran` [@Lun2016], treating spots as equivalent to single cells, and considering only molecular features (gene expression) as described in @sec-seq-norm-feat-dimred. We also first filter out mitochondrial genes, since these are very highly expressed and not of main biological interest here.
 
 ```{r}
 # remove mitochondrial genes
@@ -180,47 +182,47 @@ Alternatively, run [nnSVG](https://bioconductor.org/packages/nnSVG) [@Weber2023]
 Here, we run nnSVG using a small subset of the dataset for faster runtime. We select a subset of the data by subsampling on the set of spots and including stringent filtering for low-expressed genes. For a full analysis, we recommend running `nnSVG` on all spots and using default filtering parameters (for Visium data from human brain tissue), which takes around 45 minutes for one Visium slide on a standard laptop using multiple cores.
 
 ```{r, message=FALSE}
-library(nnSVG)
+# library(nnSVG)
 ```
 
 ```{r}
-# subsample spots
-n <- 100
-set.seed(123)
-ix <- sample(seq_len(n), n)
-
-spe_nnSVG <- spe[, ix]
-
-# filter low-expressed and mitochondrial genes
-# using very stringent filtering parameters for faster runtime in this example
-# note: for a full analysis, use alternative filtering parameters (e.g. defaults)
-spe_nnSVG <- filter_genes(
-  spe_nnSVG, filter_genes_ncounts = 10, filter_genes_pcspots = 3
-)
-
-# re-calculate logcounts after filtering
-# using library size factors
-spe_nnSVG <- logNormCounts(spe_nnSVG)
-
-# run nnSVG
-# using a single core for compatibility on build system
-# note: for a full analysis, use multiple cores
-set.seed(123)
-spe_nnSVG <- nnSVG(spe_nnSVG, n_threads = 1)
-
-# investigate results
-
-# show results
-head(rowData(spe_nnSVG), 3)
-
-# number of significant SVGs
-table(rowData(spe_nnSVG)$padj <= 0.05)
-
-# show results for top n SVGs
-rowData(spe_nnSVG)[order(rowData(spe_nnSVG)$rank)[1:6], ]
-
-# identify top-ranked SVG
-rowData(spe_nnSVG)$gene_name[which(rowData(spe_nnSVG)$rank == 1)]
+# # subsample spots
+# n <- 100
+# set.seed(123)
+# ix <- sample(seq_len(n), n)
+# 
+# spe_nnSVG <- spe[, ix]
+# 
+# # filter low-expressed and mitochondrial genes
+# # using very stringent filtering parameters for faster runtime in this example
+# # note: for a full analysis, use alternative filtering parameters (e.g. defaults)
+# spe_nnSVG <- filter_genes(
+#   spe_nnSVG, filter_genes_ncounts = 10, filter_genes_pcspots = 3
+# )
+# 
+# # re-calculate logcounts after filtering
+# # using library size factors
+# spe_nnSVG <- logNormCounts(spe_nnSVG)
+# 
+# # run nnSVG
+# # using a single core for compatibility on build system
+# # note: for a full analysis, use multiple cores
+# set.seed(123)
+# spe_nnSVG <- nnSVG(spe_nnSVG, n_threads = 1)
+# 
+# # investigate results
+# 
+# # show results
+# head(rowData(spe_nnSVG), 3)
+# 
+# # number of significant SVGs
+# table(rowData(spe_nnSVG)$padj <= 0.05)
+# 
+# # show results for top n SVGs
+# rowData(spe_nnSVG)[order(rowData(spe_nnSVG)$rank)[1:6], ]
+# 
+# # identify top-ranked SVG
+# rowData(spe_nnSVG)$gene_name[which(rowData(spe_nnSVG)$rank == 1)]
 ```
 
 
