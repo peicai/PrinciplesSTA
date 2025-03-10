@@ -147,7 +147,7 @@ approaches or in cases where the cells under study are poorly characterized.
 ```{r plt-hm, fig.width=6, fig.height=5}
 #| code-fold: true
 # aggregate AUC values by cluster
-mu <- aggregateAcrossCells(auc, spe$k, use.assay.type="AUC", statistics="mean")
+mu <- aggregateAcrossCells(auc, ids=colLabels(spe), use.assay.type="AUC", statistics="mean")
 # visualize as (set x cluster) heatmap
 pheatmap(mat=assay(mu), scale="row", col=pals::coolwarm())
 ```

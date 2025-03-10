@@ -1,0 +1,128 @@
+# Processing {#sec-img-processing}
+
+## Preamble
+
+### Introduction
+
+In this demo, we will continue on processing Xenium data on a human breast cancer biopsy section from @Janesick2023, which has already undergone quality control and minimal filtering; see @sec-img-quality-control.
+The processing steps carried out here -- namely, normalization, dimension reduction, and clustering -- lay the foundating for a variety of downstream analysis tasks that will be covered in the next chapters.
+Here, we will run standard non-spatial and spatially aware approaches; for a more comprehensive overview of methodology and tools, see @sec-crs-dimension-reduction on dimension reduction and @sec-crs-clustering on clustering. 
+
+### Dependencies
+
+```{r load-libs, message=FALSE, warning=FALSE}
+library(scran)
+library(scater)
+library(igraph)
+library(Banksy)
+library(ggplot2)
+library(ggspavis)
+library(patchwork)
+library(OSTA.data)
+library(SpatialExperiment)
+# set seed for random number generation
+# in order to make results reproducible
+set.seed(20000229)
+# load data from preceding 
+# chapter (post quality control)
+(spe <- readRDS("img-spe_qc.rds"))
+```
+
+Before getting started, we will retrieve the authors' cell type labels, 
+which were obtained by transferring scFFPE-seq annotations (supervised); 
+these comprise 20 subpopulations.
+
+```{r load-anno}
+# get annotations from 'BiocFileCache'
+# (data has been retrieved already)
+id <- "Xenium_HumanBreast1_Janesick"
+pa <- OSTA.data_load(id)
+dir.create(td <- tempfile())
+unzip(pa, "annotation.csv", exdir=td)
+df <- read.csv(list.files(td, full.names=TRUE))
+# add annotations as cell metadata
+cs <- match(spe$cell_id, df$Barcode)
+spe$Label <- df$Annotation[cs]
+```
+
+## Normalization {#sec-img-normalization}
+
+Library size-based normalization as is typical for scRNA-seq data has been shown to be problematic for ST data, especially so for targeted panels underlying current commercial imaging-based ST platforms [@Atta2024,@Bhuva2024].
+For lack of a better approach, we here use standard log-library size normalization.
+We caution readers, however, to keep an eye out in the literature for attempts to provide a better strategy.
+
+```{r log}
+spe <- logNormCounts(spe)
+```
+
+## Feature selection {#sec-img-feature-selection}
+
+At this stage, we would typically perform selection of (e.g., highly variable) features; see @sec-seq-processing.
+The dataset at hand, however, is targeted and relatively low-plex, so that features have already been selected by design (e.g., different targets will be included in immuno-oncology and neuroscience panels).
+
+## Dimension Reduction {#sec-img-dimension-reduction}
+
+As a baseline, we will perform principal component analysis (PCA), which underlies many standard scRNA-seq analysis pipelines, such as (spatially unaware) graph-based clustering based on a shared nearest neighbor (SNN) graph and the Leiden or Louvain algorithm for community detection.
+
+```{r dr-tx}
+spe <- runPCA(spe, ncomponents=20)
+```
+
+For comparison, we will also perform spatially-aware dimension reduction with `r BiocStyle::Biocpkg("BANKSY")` [@Singhal2024-BANKSY]; see @sec-crs-dimension-reduction.
+
+```{r dr-sp, message=FALSE}
+spe <- computeBanksy(spe, assay_name="logcounts")
+spe <- runBanksyPCA(spe, npcs=20, lambda=0.2)
+```
+
+To not confuse different types of PCs, we rename `reducedDims` to end in `_sp` and `_tx` for spatially aware and unaware results, respectively.
+
+```{r dr-nm}
+reducedDimNames(spe) <- c("PCA_tx", "PCA_sp")
+```
+
+## Clustering {#sec-img-clustering}
+
+Here, we perform standard graph-based clustering by (i) constructing a shared nearest neighbor (SNN) graph and (ii) using the Leiden algorithm for community detection.
+By basing the SNN graph on standard and `BANKSY` PCs, respectively, we can obtain non-spatial as well as spatially aware assignments:
+
+```{r clu}
+pcs <- c(Leiden="PCA_tx", Banksy="PCA_sp")
+for (. in names(pcs)) {
+    # build cellular shared nearest-neighbor (SNN) graph
+    g <- buildSNNGraph(spe, use.dimred=pcs[.], type="jaccard", k=20)
+    # cluster using Leiden community detection algorithm
+    k <- cluster_leiden(g, objective_function="modularity", resolution=0.8)
+    spe[[.]] <- factor(k$membership)
+}
+```
+
+## Visualization
+
+Let's visualize the assignment obtains from non-spatial and spatially aware clustering:
+
+```{r plt-clu-xy, message=FALSE, fig.width=12, fig.height=3}
+#| code-fold: true
+# TODO: 'ggspavis' is being a bit pedantic...
+spe$in_tissue <- 1; spe$x_centroid <- spe$y_centroid <- NULL
+lapply(c("Label", "Leiden", "Banksy"), \(.) {
+    plt <- plotSpots(spe, annotate=.)
+    plt$layers[[1]]$aes_params$stroke <- 0
+    plt$layers[[1]]$aes_params$size <- 0.2
+    plt
+}) |>
+    wrap_plots(nrow=1) &
+    theme(legend.key.size=unit(0, "lines")) &
+    scale_color_manual(values=unname(pals::trubetskoy()))
+```
+
+## Appendix
+
+### Saving {.unnumbered}
+
+```{r save-data}
+colLabels(spe) <- spe$Banksy
+saveRDS(spe, "img-spe_cl.rds")
+```
+
+### References {.unnumbered}

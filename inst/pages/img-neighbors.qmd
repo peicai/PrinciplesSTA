@@ -12,6 +12,7 @@ library(BiocParallel)
 library(SpatialExperiment)
 # load data from previous section
 spe <- readRDS("img-spe_cl.rds")
+spe$k <- colLabels(spe)
 # basic theme for spatial plots
 theme_xy <- list(
     coord_equal(expand=FALSE), 
@@ -139,7 +140,7 @@ Secondly, let's visualize the obtained spatial contexts in space:
 
 ```{r imcRtools-plot, fig.width=9, fig.height=3, fig.cap="Tissue plot with cells colored by cluster (left) and spatial context (right) based on $k$-means clustering of cluster frequencies among each cell's (Euclidean) $k$NNs."}
 #| code-fold: true
-pal_k <- brewer.pal(nlevels(df$k), "Paired")
+pal_k <- unname(pals::trubetskoy(nlevels(df$k)))
 pal_c <- c("blue", "cyan", "gold", "magenta", "maroon")
 ggplot(df, aes(x_centroid, y_centroid, col=k)) + 
     scale_color_manual(values=pal_k) +

@@ -1,4 +1,4 @@
-# CosMx workflow
+# Workflow: CosMx
 
 
 ## References {.unnumbered}

@@ -1,4 +1,4 @@
-# Workflow: Human DLPFC {#sec-seq-workflow-dlpfc}
+# Workflow: Visium DLPFC {#sec-seq-workflow-dlpfc}
 
 ## Introduction
 
@@ -127,7 +127,7 @@ dim(spe)
 
 ## Normalization
 
-Calculate log-transformed normalized counts (logcounts) with the library size factors methodology, using methods from `scater` [@McCarthy2017] and `scran` [@Lun2016], making the assumption that spots can be treated as equivalent to cells. For more details, see @sec-seq-norm-feat-dimred.
+Calculate log-transformed normalized counts (logcounts) with the library size factors methodology, using methods from `scater` [@McCarthy2017] and `scran` [@Lun2016], making the assumption that spots can be treated as equivalent to cells. For more details, see @sec-seq-processing.
 
 ```{r, message=FALSE}
 library(scran)
@@ -150,7 +150,7 @@ assayNames(spe)
 
 ## Feature selection
 
-Identify a set of top highly variable genes (HVGs), which will be used to define cell types. We use methods from `scran` [@Lun2016], treating spots as equivalent to single cells, and considering only molecular features (gene expression) as described in @sec-seq-norm-feat-dimred. We also first filter out mitochondrial genes, since these are very highly expressed and not of main biological interest here.
+Identify a set of top highly variable genes (HVGs), which will be used to define cell types. We use methods from `scran` [@Lun2016], treating spots as equivalent to single cells, and considering only molecular features (gene expression) as described in @sec-seq-processing. We also first filter out mitochondrial genes, since these are very highly expressed and not of main biological interest here.
 
 ```{r}
 # remove mitochondrial genes
@@ -177,7 +177,7 @@ length(top_hvgs)
 
 ## Spatially-aware feature selection
 
-Alternatively, run [nnSVG](https://bioconductor.org/packages/nnSVG) [@Weber2023] to identify a set of top spatially variable genes (SVGs) instead of HVGs.
+Alternatively, run [nnSVG](https://bioconductor.org/packages/nnSVG) [@Weber2023-nnSVG] to identify a set of top spatially variable genes (SVGs) instead of HVGs.
 
 Here, we run nnSVG using a small subset of the dataset for faster runtime. We select a subset of the data by subsampling on the set of spots and including stringent filtering for low-expressed genes. For a full analysis, we recommend running `nnSVG` on all spots and using default filtering parameters (for Visium data from human brain tissue), which takes around 45 minutes for one Visium slide on a standard laptop using multiple cores.
 

@@ -38,6 +38,7 @@ Imports:
     BayesSpace,
     BiocFileCache, 
     BiocParallel,
+    DESpace,
     doMC,
     dplyr, 
     DropletUtils,

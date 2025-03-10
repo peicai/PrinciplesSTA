@@ -8,7 +8,7 @@
 
 Sequencing-based spatial transcriptomics represents a set of methods that combine high-throughput gene expression profiling from high-throughput sequencing assays with spatial information derived from unique barcodes that are location-specific. Thus, gene expression patterns can profiling while retaining spatial arrangement.
 
-Several steps are involved, including tissue preparation, RNA capture, reverse transcription, and high-throughput sequencing. Bioinformatically, reads are mapped to reference transcriptomes (or annotated genomes) and reads are furhter parsed to determine their original spatial origin.
+Several steps are involved, including tissue preparation, RNA capture, reverse transcription, and high-throughput sequencing. Bioinformatically, reads are mapped to reference transcriptomes (or annotated genomes) and reads are further parsed to determine their original spatial origin.
 
 ## Platforms
 

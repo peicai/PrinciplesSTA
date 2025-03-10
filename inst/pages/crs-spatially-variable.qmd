@@ -4,35 +4,95 @@
 
 ### Introduction
 
-Methods to identify spatially variable genes (SVGs) aim to find a list of top-ranked genes with strong spatial patterns of expression. These methods can be used as an a spatially-aware alternative to feature selection methods described in @sec-seq-norm-feat-dimred, or to identify individual biologically informative genes as candidates for further experimental follow-up.
+Unsupervised clustering and label-transfer approaches yield (discrete, non-overlapping) grouping of cells by transcriptional -- and presumably functional -- similarity. 
+Identifying **differentially expressed genes (DEGs)**, i.e., genes that are up-/down-regulated in one or few subpopulation(s), helps characterize clusters (and, in an unsupervised setting, find biologically meaningful cluster labels).
 
-Here, we define SVGs as any genes with **spatially correlated patterns of expression** across the tissue area.
+By contrast, methods to identify **spatially variable genes (SVGs)** aim to find genes with spatially correlated patterns of expression.
+Feature selection in terms of SVGs can be used as a spatially-aware alternative to mean-variance relationship-based HVGs (c.f. @sec-seq-processing), or to identify biologically informative genes as candidates for experimental follow-up.
 
-Several methods to identify SVGs in ST data have recently been developed, which each have various methodological and computational tradeoffs. These include:
-[Standard spatial statistics such as [Moran's I](https://en.wikipedia.org/wiki/Moran%27s_I) or [Geary's C](https://en.wikipedia.org/wiki/Geary%27s_C) may also be used to rank genes by their observed spatial autocorrelation (see @sec-crs-spat-stat); however, these tend to be too sensitive, since they have not been developed for the specific properties of spatial transcriptomics data.]{.aside}
-
-- R (Bioc): `r BiocStyle::Biocpkg("nnSVG")` [@Weber2023]
-- Python (pip): `r BiocStyle::Githubpkg("Teichlab/SpatialDE")` [@Svensson2018]
-- R (GitHub): `r BiocStyle::Githubpkg("xzhoulab/SPARK")` [@Sun2020] and `SPARK-X` [@Zhu2021]
+Here, we demonstrate selected methods to identify SVGs *de novo* (using `nnSVG`), and based on pre-computed spatial clusters (using `DESpace`).
+We further compare these to DEGs as well as HVGs, and discuss the conceptual similarities and differences between genes identified through these different approaches.
 
 ### Dependencies
 
 ```{r deps, message=FALSE, warning=FALSE}
-library(nnSVG)
-library(scater)
+library(DESpace)
+library(dplyr)
 library(ggspavis)
+library(nnSVG)
 library(patchwork)
+library(scater)
+library(scran)
 library(SpatialExperiment)
-(spe <- readRDS("seq-spe_dr.rds"))
+library(tidyr)
+# set seed for random number generation
+# in order to make results reproducible
+set.seed(123)
+# load data from previous chapters
+# (post quality control & clustering)
+(spe <- readRDS("seq-spe_cl.rds"))
 ```
 
-## Analysis
+## Non-spatial
 
-Here, we demonstrate a short example showing how to identify a set of top SVGs using `r BiocStyle::Biocpkg("nnSVG")` [@Weber2023], which is available through Bioconductor and can be easily integrated into Bioconductor-based workflows.
+We can also use methods originally developed for bulk and single-cell transcriptomics, such as those for detecting highly variable genes (HVGs) and differentially expressed genes (DEGs), on spatial omics data. 
+Note that HVGs are defined only based on molecular features (i.e., gene expression), and do not incorporate spatial information. 
+In the context of single-cell and ST, differentially expressed (DE) may refer to differences between groups of samples, or to differences between clusters (e.g., cell types, or spatial domains); below, we consider changes across spatial structures.
 
-In this example, we run `nnSVG` using a small subset of the dataset for faster runtime. We select a subset by subsampling on the set of spots and including stringent filtering for lowly expressed genes. A full analysis using all spots for this dataset and default filtering parameters for Visium data from human brain tissue takes around 45 minutes for one Visium sample on a standard laptop.
+### Highly variable genes (HVGs) {#sec-crs-hvg}
 
-```{r sub, message=FALSE}
+For a comprehensive discussion on HVG selection, we refer readers to [OSCA](https://bioconductor.org/books/3.19/OSCA.basic/feature-selection.html#hvg-selection). 
+Below, we take a standard approach for selecting HVGs. For more details and examples, see @sec-seq-processing.
+
+```{r hvg}
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+```
+
+### Differentially expressed genes (DEGs) {#sec-crs-deg}
+
+For details on identifying DE genes between groups of cells from single-cell RNA-seq data, we refer readers to [OSCA](https://bioconductor.org/books/3.20/OSCA.basic/marker-detection.html). 
+Below, we show a potential approach, using marker detection methods on ST data, to identify DE genes between spatial clusters.
+
+```{r deg, fig.width=10, fig.height=3}
+# differential gene expression analysis
+mgs <- findMarkers(spe, groups=spe$BayesSpace, direction="up")
+# select for a few markers per cluster
+deg <- lapply(mgs, \(df) rownames(df)[df$Top <= 3])
+length(deg <- unique(unlist(deg)))
+```
+
+## Spatially-aware
+
+Here, we demonstrate brief examples of how to identify a set of top SVGs using (`r BiocStyle::Biocpkg("nnSVG")` [@Weber2023-nnSVG] and `r BiocStyle::Biocpkg("DESpace")` [@Cai2024-DESpace]). These methods are available through Bioconductor and can be easily integrated into Bioconductor-based workflows. 
+
+### Spatially-variable genes (SVGs) {#sec-crs-svg}
+
+SVGs are usually identified integrating gene expression measurements with spatial coordinates, either with or without predefined spatial domains.
+SVGs approaches can be broadly categorized into three types: overall SVGs, spatial domain-specific SVGs, and cell type-specific SVGs [@Yan2024-SVG]. 
+
+The detection of **overall SVGs** is sometimes used as a feature selection step for further downstream analyses such as spatially-aware clustering (see @sec-crs-clustering).
+Several methods have been proposed for detecting overall SVGs; below, we report some few notable examples:
+
+- `r BiocStyle::Biocpkg("spatialDE")` [@Svensson2018-spatialDE] and `r BiocStyle::Biocpkg("nnSVG")` [@Weber2023-nnSVG], which are based on a Gaussian process model;
+- [Moran's I](https://en.wikipedia.org/wiki/Moran%27s_I) and [Geary's C](https://en.wikipedia.org/wiki/Geary%27s_C), which ranks genes according to their observed spatial autocorrelation (see @sec-crs-spat-stat); and,
+- `r BiocStyle::Githubpkg("xzhoulab/SPARK")` [@Sun2020-SPARK; @Zhu2021-SPARK-X], which uses a non-parametric test of the covariance matrices of the spatial expression data.
+
+**Spatial domain-specific** SVGs target changes in gene expression between spatial domains, which are used to summarize the whole spatial information.
+Genes displaying expression changes across spatial clusters indicate SVGs. 
+Spatial domains can be predefined based on morphology knowledge, or identified through spatially-aware clustering approaches such as `r BiocStyle::Biocpkg("BayesSpace")` [@Zhao2021-BayesSpace] and `r BiocStyle::Biocpkg("Banksy")` [@Singhal2024-BANKSY].
+Methods that belong to this category include `r BiocStyle::Biocpkg("DESpace")` [@Cai2024-DESpace] in R, and `r BiocStyle::Githubpkg("jianhuupenn/SpaGCN")` [@Hu2021-SpaGCN] in Python.
+
+**Cell type-specific** SVG methods leverage external cell type annotations to identify SVGs within cell types. 
+They analyze interaction effects between cell types and spatial coordinates [@Yan2024-SVG].
+Examplary methods in R include `r BiocStyle::Biocpkg("CTSV")` [@Yu2022-CTSV], *C-SIDE* (implemented in `r BiocStyle::Githubpkg("dmcable/spacexr")`; [@Cable2022-C-SIDE]), and `r BiocStyle::Githubpkg("shanyu-stat/spVC")` [@Yu2024-spVC].
+
+### `nnSVG`
+
+In this example, we use a small subset of the dataset for faster runtime. We select a subset of the data, by subsampling the set of spots and including stringent filtering for lowly expressed genes. 
+[A full analysis with `nnSVG` using all spots for this dataset and default filtering parameters for an individual Visium sample from human brain tissue (available from `r BiocStyle::Biocpkg("spatialLIBD")`) takes around 45 minutes on a standard laptop.]{.aside}
+
+```{r svg-nnSVG, message=FALSE, eval=FALSE}
 # # set random seed for number generation
 # # in order to make results reproducible
 # set.seed(123)
@@ -40,57 +100,181 @@ In this example, we run `nnSVG` using a small subset of the dataset for faster r
 # # (note: skip this step in full analysis)
 # n <- 100
 # sub <- spe[, sample(ncol(spe), 100)]
-# # filter lowly expressed genes using stringent 
+# # filter lowly expressed genes using stringent
 # # criteria to decrease runtime in this demo
 # # (note: use default criteria in full analysis)
 # sub <- filter_genes(sub,     # filter for genes with...
 #     filter_genes_ncounts=10, # at least 10 counts in
 #     filter_genes_pcspots=3)  # at least 3% of spots
-# # re-normalize post-filtering
+# # re-normalize counts post-filtering
 # sub <- logNormCounts(sub)
-```
-
-```{r nnSVG, cache=TRUE}
+# 
 # # run nnSVG
 # set.seed(123)
 # sub <- nnSVG(sub)
-```
-
-```{r res}
+# 
 # # extract gene-level results
-# res <- rowData(sub)
+# res_nnSVG <- rowData(sub)
 # # show results
-# head(res, 3)
-# # count significant SVGs (at 5% FDR)
-# table(res$padj <= 0.05)
-# # identify top-ranked SVG
-# res$gene_name[res$rank == 1]
+# head(res_nnSVG, 3)
+# # count significant SVGs (at 5% FDR significance level)
+# table(res_nnSVG$padj <= 0.05)
+# # identify the top-ranked SVGs
+# res_nnSVG$gene_name[res_nnSVG$rank == 1]
+# # store the top 7 SVGs
+# top_nnSVG <- res_nnSVG$gene_name[res_nnSVG$rank < 7.5]
 ```
 
-## Visualization
+### `DESpace`
 
-```{r plt-xy, message=FALSE, fig.width=10, fig.height=4.5}
+`DESapce` relies on pre-computed spatial domains to summarize the primary spatial structures of the data; see @sec-crs-clustering on clustering.
+
+```{r plt-clu-xy, message=FALSE, fig.width=3.5, fig.height=3}
 #| code-fold: true
-# # visualize top-n SVGs
-# gs <- res$gene_name[res$rank < 9]
-# ps <- lapply(gs, \(.) 
-#     plotSpots(spe, 
-#         annotate=., 
-#         assay_name="logcounts", 
-#         feature_names="gene_name"))
-# # arrange & prettify
-# wrap_plots(ps, nrow=2) & theme(
-#     legend.key.width=unit(0.4, "lines"), 
-#     legend.key.height=unit(0.8, "lines")) &
-#     scale_color_gradientn(colors=pals::parula())
+plotSpots(spe, 
+    annotate="BayesSpace") +
+    theme(legend.key.size=unit(0, "lines")) +
+    scale_color_manual(values=unname(pals::trubetskoy()))
+```
+
+```{r svg-DESpace}
+# run DESpace
+res <- DESpace_test(spe, spatial_cluster="BayesSpace")
+head(res_DESpace <- res$gene_results)
+# count significant SVGs (at 5% FDR significance level)
+table(res_DESpace$FDR <= 0.05)
 ```
 
 ::: {.callout-note collapse="true" title="Downstream analyses"}
 
-The set of top SVGs from `nnSVG` may then be investigated further, e.g. by plotting the spatial expression of several top genes and by comparing the list of top genes with known gene sets associated with biological processes of interest in the dataset. The set of top SVGs may also be used as the input for further downstream analyses such as spatially-aware clustering to define spatial domains (see @sec-seq-clustering).
+## Downstream analyses 
+
+The set of top SVGs may be further investigated, e.g. by plotting the spatial expression of several top genes and via gene pathway analyses (i.e., comparing significant SVGs with known gene sets associated with specific biological functions). 
+
+```{r top}
+top_HVGs <- getTopHVGs(dec, n=(n <- 6))
+top_DEGs <- lapply(mgs, \(df) rownames(df)[df$Top == 1])
+top_DEGs <- unique(unlist(top_DEGs))[seq_len(6)]
+top_DESpace <- res_DESpace$gene_id[seq_len(6)]
+```
+
+### Visualization
+
+To visualize the expression levels of selected genes in spatial coordinates on the tissue slide, we can use plotting functions from the `r BiocStyle::Biocpkg("ggspavis")` package.
+
+```{r plt-xy, message=FALSE, fig.width=13, fig.height=6}
+#| code-fold: true
+# get top SVGs from each method
+gs <- list(
+    HVGs=top_HVGs, 
+    DEGs=top_DEGs, 
+    DESpace=top_DESpace)
+# get gene symbols from ensembl identifiers
+idx <- match(unlist(gs), rowData(spe)$gene_id)
+.gs <- rowData(spe)$gene_name[idx]
+# expression plots for each top gene
+ps <- lapply(seq_along(.gs), \(.) {
+    plotSpots(spe, 
+        point_size=0,
+        annotate=.gs[.], 
+        assay_name="logcounts", 
+        feature_names="gene_name") + 
+        if (. %% 6 == 1) list(
+            ylab(names(gs)[ceiling(./6)]), 
+            theme(axis.title.y=element_text()))
+}) 
+wrap_plots(ps, nrow=3) & theme(
+    legend.key.width=unit(0.4, "lines"),
+    legend.key.height=unit(0.8, "lines")) &
+    scale_color_gradientn(colors = pals::parula())
+```
+
+### Comparison
+
+We can compare the ranks of the genes detected by each method and compute pairwise correlations, highlighting two known cortical layer-associated SVGs: *MOBP* and *SNAP25*.
+While all four methods - HVGs, DEGs, SVGs identified through `nnSVG` and `DESpace` - yield similar gene ranks, each method captures distinct aspects of gene expression, with varying pairwise correlations between them.
+
+```{r plt-data, message=FALSE}
+#| code-fold: true
+# subset data for the 113 genes nnSVG is based on
+# sub_gene <- rowData(sub)$gene_id
+# sub_DESpace <- res_DESpace[sub_gene, ] 
+# sub_HVG <- as.data.frame(dec[sub_gene, ])
+# 
+# # aggregate DEGs for each spatial domain
+# subset_mgs <- lapply(mgs, \(x) x[sub_gene, 1:3] |> as.data.frame())
+# sub_DEG <- do.call(cbind, subset_mgs) 
+# top_cols <- sub_DEG |> select(ends_with(".Top"))
+# sub_DEG$Top <- do.call(pmin, c(top_cols, na.rm = TRUE))
+# 
+# # compute ranks 
+# sub_DESpace$rank <- rank(sub_DESpace$FDR, ties.method = "first")
+# sub_HVG$rank <- rank(-1 * sub_HVG$bio, ties.method = "first")
+# sub_DEG$rank <- rank(sub_DEG$Top, ties.method = "first")
+# 
+# # combine 'rank' column for each method
+# res_all <- list(
+#     nnSVG = as.data.frame(res_nnSVG),
+#     DESpace = sub_DESpace, HVGs = sub_HVG, DEGs = sub_DEG
+# )
+# rank_all <- do.call(cbind, lapply(res_all, `[[`, "rank"))
+# rank_all <- data.frame(gene_id = sub_gene, rank_all)
+```
+
+```{r plt-scatter-nnsvg, message=FALSE, fig.width=10, fig.height=7}
+#| code-fold: true
+# known SVGs for this data
+# known_genes <- c("MOBP", "SNAP25")
+# # convert data structure
+# rank_long <- rank_all |>
+#     left_join(data.frame(rowData(sub)[, c("gene_id", "gene_name")]), by = "gene_id") |>
+#     select(all_of(c("gene_name", method_names))) |>
+#     pivot_longer(cols = c(nnSVG, DESpace, HVGs, DEGs), 
+#                  names_to = "method", 
+#                  values_to = "rank")
+# # all pairwise comparisons
+# df_pairs <- t(combn(method_names, 2)) |> as.data.frame()
+# # function to plot each pairwise comparison
+# plot_pairwise_comparison <- function(m1, m2, df) {
+#   # filter the data for the two methods being compared
+#   df <- df |>
+#       filter(method %in% c(m1, m2)) |>
+#       pivot_wider(names_from = method, values_from = rank)
+#   # compute pearson correlation between methods
+#   cor_val <- cor(df[[m1]], df[[m2]], method = "spearman")
+#   # plot
+#   ggplot(df, aes(x = .data[[m1]], y = .data[[m2]])) +
+#       geom_point() + 
+#       geom_text_repel(data = df %>% filter(gene_name %in% known_genes), 
+#                       aes(label = gene_name), color = "red", size = 3.25, 
+#                       nudge_x = 50, nudge_y = 10, box.padding = 0.5) +
+#       labs(x = paste(m1, "rank"), y = paste(m2, "rank"),
+#            title = paste(m2, "vs.", m1, ": Cor = ", round(cor_val, 2))) +
+#       #scale_color_manual(values = c("darkorange", "firebrick3", "deepskyblue2")) +
+#       theme_bw() + coord_fixed() + 
+#       xlim(c(0, 120)) + ylim(c(0, 120))
+# }
+# 
+# # generate and display all pairwise comparison plots
+# plots <- lapply(seq_len(nrow(df_pairs)), \(i) {
+#     plot_pairwise_comparison(df_pairs[i, 2], df_pairs[i, 1],rank_long)
+# })
+# 
+# wrap_plots(plots, ncol = 3)
+```
 
 :::
 
 ## Appendix
+ 
+### Reviews {.unnumbered}
+
+- @DasAdhikari2024-SVG
+- @Yan2024-SVG
+
+### Benchmarks {.unnumbered}
+
+- @Li2023-SVG compares 14 methods using 60 simulated datasets, generated using four different strategies, 12 experimental ST datasets, and 3 spatial ATAC-seq datasets.
+- @Chen2024-SVG compares 8 methods based on 22 experimental datasets (8 technologies, 6 tissue types) and 9 datasets simulated using `r BiocStyle::Biocpkg("scDesign3")` [@Song2024-scDesign3].
 
 ### References {.unnumbered}

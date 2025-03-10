@@ -1,0 +1,11 @@
+# Session information {#sec-apx-session-info}
+
+## Session info {-}
+
+```{r "session info"}
+#| cache: false
+sessioninfo::session_info(
+  installed.packages()[, "Package"], 
+  include_base = TRUE
+)
+```

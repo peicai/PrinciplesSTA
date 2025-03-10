@@ -248,46 +248,6 @@ year = {2022}
 	year = {2024}
 }
 
-@article{Svensson2018,
-  title = {{SpatialDE}: identification of spatially variable genes},
-  author = {Svensson, Valentine and Teichmann, Sarah A. and Stegle, Oliver},
-  journal = {Nature Methods},
-  year = {2018},
-  volume = {15},
-  pages = {343-346},
-  url = {https://doi.org/10.1038/nmeth.4636}
-}
-
-@article{Sun2020,
-  title = {Statistical analysis of spatial expression patterns for spatially resolved transcriptomic studies},
-  author = {Sun, Shiquan and Zhu, Jiaqiang and Zhou, Xiang},
-  journal = {Nature Methods},
-  year = {2020},
-  volume = {17},
-  pages = {193-200},
-  url = {https://doi.org/10.1038/s41592-019-0701-7}
-}
-
-@article{Zhu2021,
-  title = {{SPARK-X}: non-parametric modeling enables scalable and robust detection of spatial expression patterns for large spatial transcriptomic studies},
-  author = {Zhu, Jiaqiang and Sun, Shiquan and Zhou, Xiang},
-  journal = {Genome Biology},
-  year = {2021},
-  volume = {22},
-  pages = {184},
-  url = {https://doi.org/10.1186/s13059-021-02404-0}
-}
-
-@article{Weber2023,
-  title = {{nnSVG} for the scalable identification of spatially variable genes using nearest-neighbor {Gaussian} processes},
-  author = {Weber, Lukas M. and Saha, Arkajyoti and Datta, Abhirup and Hansen, Kasper D. and Hicks, Stephanie C.},
-  journal = {Nature Communications},
-  year = {2023},
-  volume = {14},
-  pages = {4059},
-  url = {https://doi.org/10.1038/s41467-023-39748-z}
-}
-
 @article{Tippani2022,
   title = {{VistoSeg}: processing utilities for high-resolution {Visium/Visium-IF} images for spatial transcriptomics data},
   author = {Tippani, Madhavi and Divecha, Heena R. and Catallini II, Joseph L. and Kwon, Sang Ho and Weber, Lukas M. and Spangler, Abby and Jaffe, Andrew E. and Hicks, Stephanie C. and Martinowich, Keri and Collado-Torres, Leonardo and Page, Stephanie C. and Maynard, Kristen R.},
@@ -366,7 +326,7 @@ year = {2022}
   url = {https://doi.org/10.1093/bioinformatics/btad550}
 }
 
-@article{Hu2021,
+@article{Hu2021-SpaGCN,
   title = {{SpaGCN}: {Integrating} gene expression, spatial location and histology to identify spatial domains and spatially variable genes by graph convolutional network},
   author = {Hu, Jian and Li, Xiangjie and Coleman, Kyle and Schroeder, Amelia and Ma, Nan and Irwin, David J. and Lee, Edward B. and Shinohara, Russell T. and Li, Mingyao},
   journal = {Nature Methods},
@@ -387,7 +347,60 @@ year = {2022}
   url = {https://doi.org/10.1093/bioinformatics/btac268}
 }
 
-% seq-clustering ===============================================================
+% crs-clustering ===============================================================
+
+@ARTICLE{Traag2018-Leiden,
+  title         = "From Louvain to Leiden: guaranteeing well-connected
+                   communities",
+  author        = "Traag, Vincent and Waltman, Ludo and van Eck, Nees Jan",
+  journal       = "arXiv",
+  pages         = "1810.08473",
+  year          =  2018,
+  archivePrefix = "arXiv",
+  primaryClass  = "cs.SI"
+}
+
+@ARTICLE{Wang2024,
+  title     = "A comprehensive review of approaches for spatial domain
+               recognition of spatial transcriptomes",
+  author    = "Wang, Ziyi and Geng, Aoyun and Duan, Hao and Cui, Feifei and Zou,
+               Quan and Zhang, Zilong",
+  journal   = "Briefings in Functional Genomics",
+  publisher = "Oxford University Press (OUP)",
+  volume    =  23,
+  number    =  6,
+  pages     = "702--712",
+  year      =  2024}
+
+@article{Hu2024,
+	author = {Hu, Yunfei and Xie, Manfei and Li, Yikang and Rao, Mingxing and Shen, Wenjun and Luo, Can and Qin, Haoran and Baek, Jihoon and Zhou, Xin Maizie},
+	date = {2024/08/09},
+	doi = {10.1186/s13059-024-03361-0},
+	isbn = {1474-760X},
+	journal = {Genome Biology},
+	number = {1},
+	pages = {212},
+	title = {Benchmarking clustering, alignment, and integration methods for spatial transcriptomics},
+	url = {https://doi.org/10.1186/s13059-024-03361-0},
+	volume = {25},
+	year = {2024}
+}
+
+@article{Liu2024,
+	author = {Liu, Teng and Fang, Zhao-Yu and Zhang, Zongbo and Yu, Yongxiang and Li, Min and Yin, Ming-Zhu},
+	date = {2024/12/01},
+	doi = {10.1016/j.csbj.2023.11.055},
+	isbn = {2001-0370},
+	journal = {Computational and Structural Biotechnology Journal},
+	month = {2025/01/18},
+	pages = {106--128},
+	publisher = {Elsevier},
+	title = {A comprehensive overview of graph neural network-based approaches to clustering for spatial transcriptomics},
+	type = {doi: 10.1016/j.csbj.2023.11.055},
+	url = {https://doi.org/10.1016/j.csbj.2023.11.055},
+	volume = {23},
+	year = {2024}
+}
 
 @article{Singhal2024-BANKSY,
   title = {{BANKSY} unifies cell typing and tissue domain segmentation for scalable spatial omics data analysis},
@@ -444,20 +457,6 @@ year = {2022}
 	url = {https://doi.org/10.1038/s41587-021-00935-2}
 }
 
-@article{Hu2024,
-	author = {Hu, Yunfei and Xie, Manfei and Li, Yikang and Rao, Mingxing and Shen, Wenjun and Luo, Can and Qin, Haoran and Baek, Jihoon and Zhou, Xin Maizie},
-	date = {2024/08/09},
-	doi = {10.1186/s13059-024-03361-0},
-	isbn = {1474-760X},
-	journal = {Genome Biology},
-	number = {1},
-	pages = {212},
-	title = {Benchmarking clustering, alignment, and integration methods for spatial transcriptomics},
-	url = {https://doi.org/10.1186/s13059-024-03361-0},
-	volume = {25},
-	year = {2024}
-}
-
 @article{You2024,
 	author = {You, Yue and Fu, Yuting and Li, Lanxiang and Zhang, Zhongmin and Jia, Shikai and Lu, Shihong and Ren, Wenle and Liu, Yifang and Xu, Yang and Liu, Xiaojing and Jiang, Fuqing and Peng, Guangdun and Sampath Kumar, Abhishek and Ritchie, Matthew E. and Liu, Xiaodong and Tian, Luyi},
 	date = {2024/09/01},
@@ -469,22 +468,6 @@ year = {2022}
 	title = {Systematic comparison of sequencing-based spatial transcriptomic methods},
 	url = {https://doi.org/10.1038/s41592-024-02325-3},
 	volume = {21},
-	year = {2024}
-}
-
-@article{Liu2024,
-	author = {Liu, Teng and Fang, Zhao-Yu and Zhang, Zongbo and Yu, Yongxiang and Li, Min and Yin, Ming-Zhu},
-	date = {2024/12/01},
-	doi = {10.1016/j.csbj.2023.11.055},
-	isbn = {2001-0370},
-	journal = {Computational and Structural Biotechnology Journal},
-	month = {2025/01/18},
-	pages = {106--128},
-	publisher = {Elsevier},
-	title = {A comprehensive overview of graph neural network-based approaches to clustering for spatial transcriptomics},
-	type = {doi: 10.1016/j.csbj.2023.11.055},
-	url = {https://doi.org/10.1016/j.csbj.2023.11.055},
-	volume = {23},
 	year = {2024}
 }
 
@@ -629,6 +612,26 @@ year = {2022}
   pages    = "2022.10.19.512902",
   year     =  2022,
   language = "en"
+}
+
+@article{Dong2022-STAGATE,
+  title = {Deciphering spatial domains from spatially resolved transcriptomics with an adaptive graph attention auto-encoder},
+  author = {Dong, Kangning and Zhang, Shihua},
+  journal = {Nature Communications},
+  year = {2022},
+  volume = {13},
+  pages = {1739},
+  url = {https://doi.org/10.1038/s41467-022-29439-6}
+}
+
+@article{Liang2024-PROST,
+  title = {PROST: quantitative identification of spatially variable genes and domain detection in spatial transcriptomics},
+  author = {Liang, Yuchen and Shi, Guowei and Cai, Runlin and Yuan, Yuchen and Xie, Ziying and Yu, Long and Huang, Yingjian and Shi, Qian and Wang, Lizhe and Li, Jun and Tang, Zhonghui},
+  journal = {Nature Communications},
+  year = {2024},
+  volume = {15},
+  pages = {600},
+  url = {https://doi.org/10.1038/s41467-024-44835-w}
 }
 
 % seq-deconvolution ============================================================
@@ -1130,6 +1133,146 @@ year = {2022}
   language = "en"
 }
 
+% crs-spatially-variable =======================================================
+
+@ARTICLE{Yu2022-CTSV,
+  title     = "Identification of cell-type-specific spatially variable genes
+               accounting for excess zeros",
+  author    = "Yu, Jinge and Luo, Xiangyu",
+  journal   = "Bioinformatics",
+  publisher = "Oxford University Press (OUP)",
+  volume    =  38,
+  number    =  17,
+  pages     = "4135--4144",
+  year      =  2022}
+
+@ARTICLE{Cable2022-C-SIDE,
+  title     = "Cell type-specific inference of differential expression in
+               spatial transcriptomics",
+  author    = "Cable, Dylan M and Murray, Evan and Shanmugam, Vignesh and Zhang,
+               Simon and Zou, Luli S and Diao, Michael and Chen, Haiqi and
+               Macosko, Evan Z and Irizarry, Rafael A and Chen, Fei",
+  journal   = "Nature Methods",
+  publisher = "Nature Publishing Group",
+  pages     = "1--12",
+  year      =  2022}
+
+@ARTICLE{Cai2024-DESpace,
+  title     = "{DESpace}: spatially variable gene detection via differential
+               expression testing of spatial clusters",
+  author    = "Cai, Peiying and Robinson, Mark D and Tiberi, Simone",
+  journal   = "Bioinformatics",
+  publisher = "Oxford University Press (OUP)",
+  volume    =  40,
+  number    =  2,
+  pages     = "btae027",
+  year      =  2024}
+
+@ARTICLE{Yu2024-spVC,
+  title     = "{spVC} for the detection and interpretation of spatial gene
+               expression variation",
+  author    = "Yu, Shan and Li, Wei Vivian",
+  journal   = "Genome Biology",
+  publisher = "BioMed Central",
+  volume    =  25,
+  number    =  1,
+  pages     =  103,
+  year      =  2024}
+
+@article{Svensson2018-spatialDE,
+  title = {{SpatialDE}: identification of spatially variable genes},
+  author = {Svensson, Valentine and Teichmann, Sarah A. and Stegle, Oliver},
+  journal = {Nature Methods},
+  year = {2018},
+  volume = {15},
+  pages = {343-346},
+  url = {https://doi.org/10.1038/nmeth.4636}
+}
+
+@article{Sun2020-SPARK,
+  title = {Statistical analysis of spatial expression patterns for spatially resolved transcriptomic studies},
+  author = {Sun, Shiquan and Zhu, Jiaqiang and Zhou, Xiang},
+  journal = {Nature Methods},
+  year = {2020},
+  volume = {17},
+  pages = {193-200},
+  url = {https://doi.org/10.1038/s41592-019-0701-7}
+}
+
+@article{Zhu2021-SPARK-X,
+  title = {{SPARK-X}: non-parametric modeling enables scalable and robust detection of spatial expression patterns for large spatial transcriptomic studies},
+  author = {Zhu, Jiaqiang and Sun, Shiquan and Zhou, Xiang},
+  journal = {Genome Biology},
+  year = {2021},
+  volume = {22},
+  pages = {184},
+  url = {https://doi.org/10.1186/s13059-021-02404-0}
+}
+
+@article{Weber2023-nnSVG,
+  title = {{nnSVG} for the scalable identification of spatially variable genes using nearest-neighbor {Gaussian} processes},
+  author = {Weber, Lukas M. and Saha, Arkajyoti and Datta, Abhirup and Hansen, Kasper D. and Hicks, Stephanie C.},
+  journal = {Nature Communications},
+  year = {2023},
+  volume = {14},
+  pages = {4059},
+  url = {https://doi.org/10.1038/s41467-023-39748-z}
+}
+
+@ARTICLE{DasAdhikari2024-SVG,
+  title     = "Recent advances in spatially variable gene detection in spatial
+               transcriptomics",
+  author    = "Das Adhikari, Sikta and Yang, Jiaxin and Wang, Jianrong and Cui,
+               Yuehua",
+  journal   = "Computational and Structural Biotechnology Journal",
+  publisher = "Elsevier BV",
+  volume    =  23,
+  pages     = "883--891",
+  year      =  2024}
+
+@ARTICLE{Yan2024-SVG,
+  title         = "Categorization of 33 computational methods to detect
+                   spatially variable genes from spatially resolved
+                   transcriptomics data",
+  author        = "Yan, Guanao and Hua, Shuo Harper and Li, Jingyi Jessica",
+  journal       = "arXiv",
+  month         =  may,
+  year          =  2024,
+  archivePrefix = "arXiv",
+  primaryClass  = "q-bio.QM"}
+
+@ARTICLE{Li2023-SVG,
+  title    = "Benchmarking computational methods to identify spatially variable
+              genes and peaks",
+  author   = "Li, Zhijian and Patel, Zain M and Song, Dongyuan and Yan, Guanao
+              and Li, Jingyi Jessica and Pinello, Luca",
+  journal  = "bioRxiv",
+  pages    = "2023.12.02.569717",
+  year     =  2023}
+
+@ARTICLE{Chen2024-SVG,
+  title     = "Evaluating spatially variable gene detection methods for spatial
+               transcriptomics data",
+  author    = "Chen, Carissa and Kim, Hani Jieun and Yang, Pengyi",
+  journal   = "Genome Biology",
+  publisher = "BioMed Central",
+  volume    =  25,
+  number    =  1,
+  pages     =  18,
+  year      =  2024}
+
+@ARTICLE{Song2024-scDesign3,
+  title     = "{scDesign3} generates realistic in silico data for multimodal
+               single-cell and spatial omics",
+  author    = "Song, Dongyuan and Wang, Qingyang and Yan, Guanao and Liu,
+               Tianyang and Sun, Tianyi and Li, Jingyi Jessica",
+  journal   = "Nature Biotechnology",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  42,
+  number    =  2,
+  pages     = "247--252",
+  year      =  2024}
+  
 % crs-gene-sets ================================================================
 
 @article{Aibar2017-AUCell,

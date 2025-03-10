@@ -1,16 +1,18 @@
 # Interoperability {#sec-bkg-interoperability}
 
-Ideally, users would be able to leverage the full range of available tools for their analysis. Methods should be selected based on scientific merit (as demonstrated by third-party benchmark), and independent of having been implemented in a given programming language (R or Python) or framework (say, Bioc or `Seurat`). 
+## Introduction
+
+Ideally, users would be able to leverage the full range of available tools for their analysis. Methods should be selected based on scientific merit (as demonstrated by third-party benchmarks), and independent of having been implemented in a given programming language (R or Python) or framework (say, Bioconductor or `Seurat`).
 
 [R's application to spatial data dates back decades, primarily in epidemiological and geospatial research. As a result, various tools for spatial analyses have been established; for example, `r BiocStyle::CRANpkg("sp")` provides a "coherent set of classes and methods for [...] points, lines, polygons, and grids"; `r BiocStyle::CRANpkg("spatstat")` and, more recently, `r BiocStyle::CRANpkg("sf")` provide tools for spatial point pattern and vector data, respectively.]{.aside}
 For single-cell and spatial omics data analysis, being able to leverage different ecosystems is especially powerful. On the one hand, Python offers superb infrastructure for image analysis and machine learning-based approaches.
 On the other hand, the R programming language has been historically dedicated to statistical computing; as a result, many a modern R method for spatial omics data builds on a solid foundation of tools for spatial statistics and statistical modeling in general.
 
 Different data structures, although standardized within a given framework, make switching between languages and tools especially cumbersome.
-In the realm of single-cell and spatial omics, Bioc tools build around `r BiocStyle::Biocpkg("SummarizedExperiment")`-derived classes, while `r BiocStyle::CRANpkg("Seurat")`, `r BiocStyle::CRANpkg("Giotto")` and `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` rely on objects built in-house; and Python's [`scanpy`](https://scanpy.readthedocs.io/) [@Wolf2018-scanpy] and [`squidpy`](https://squidpy.readthedocs.io/) [@Palla2022-squidpy] use [`AnnData`](https://anndata.readthedocs.io/). Attempts to alleviate the problem are being made; e.g., `r BiocStyle::Biocpkg("zellkonverter")` and functions from `r BiocStyle::CRANpkg("Seurat")` allow for conversion between Python's `AnnData` and R/Bioc's `r BiocStyle::Biocpkg("SingleCellExperiment")`. 
+In the realm of single-cell and spatial omics, Bioconductor tools build around `r BiocStyle::Biocpkg("SummarizedExperiment")`-derived classes, while `r BiocStyle::CRANpkg("Seurat")`, `r BiocStyle::CRANpkg("Giotto")` and `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` rely on objects built in-house; and Python's [`scanpy`](https://scanpy.readthedocs.io/) [@Wolf2018-scanpy] and [`squidpy`](https://squidpy.readthedocs.io/) [@Palla2022-squidpy] use [`AnnData`](https://anndata.readthedocs.io/). Attempts to alleviate the problem are being made; e.g. `r BiocStyle::Biocpkg("zellkonverter")` and functions from `r BiocStyle::CRANpkg("Seurat")` allow for conversion between Python's `AnnData` and R/Bioconductor's `r BiocStyle::Biocpkg("SingleCellExperiment")`.
 
-[[Quarto](https://quarto.org) is the successor of [Rmarkdown](https://rmarkdown.rstudio.com) by Posit, f.k.a. RStudio. Just as *.rmd* files, *.qmd* files can include scientific content (e.g., cross-referencing, LaTeX-based equations), and can be published in multiple output formats (HTML, PDF etc.). -- This book uses Quarto.]{.aside}
-On a higher level, tools that enable interoperability between programming languages have become available. For example, the `r BiocStyle::Biocpkg("reticulate")` package provides an R interface to Python, including support to translate between objects from both languages; `r BiocStyle::Biocpkg("basilisk")` facilitates Python environment management within the Bioc ecosystems, but can be interfaced with `reticulate` as well; and, Quarto can generate dynamic reports from code in different languages.
+[[Quarto](https://quarto.org) is the successor of [R Markdown](https://rmarkdown.rstudio.com) by Posit (formerly known as RStudio). Similar to *.rmd* files, *.qmd* files can include scientific content (e.g. cross-referencing, LaTeX-based equations), and can be published in multiple output formats (HTML, PDF, etc.). -- This book uses Quarto.]{.aside}
+On a higher level, tools that enable interoperability between programming languages have become available. For example, the `r BiocStyle::Biocpkg("reticulate")` package provides an R interface to Python, including support to translate between objects from both languages; `r BiocStyle::Biocpkg("basilisk")` facilitates Python environment management within the Bioconductor ecosystems, but can be interfaced with `reticulate` as well; and, Quarto can generate dynamic reports from code in different languages.
 
 <!--
 Nevertheless, future efforts should be made on the developers' side to consider existing frameworks in the first place (during implementation), and to provide users with documentation (e.g., code demos) and the necessary methods (e.g., conversion functions) to use other tools, if they so wish, in multi-tool and potentially multilingual analysis pipelines.
@@ -22,7 +24,10 @@ The `r BiocStyle::Biocpkg("Rarr")` package, which has recently been submitted to
 Together, these developments have the potential to lay a foundation for more seamless interoperability of computational tools to analyze single-cell and spatial omics data.
 -->
 
-## 1. Calling Python {.unnumbered}
+
+## Example
+
+### Calling Python
 
 Say we have created a `conda` environment; e.g.:
 
@@ -55,7 +60,8 @@ dir.create(td <- tempfile())
 #     obs: 'labels', 'precise_labels', 'cell_type'
 ```
 
-## 2. Continuing in R {.unnumbered}
+
+### Continuing in R
 
 We can access *any* of the variables above in R. For basic outputs, this works out of the box:
 
@@ -67,7 +73,7 @@ unique(ad$obs$cell_type)
 # [7] "astrocytes_ependymal"
 ```
 
-Then again, `reticulate` supports few direct [type conversions](https://rstudio.github.io/reticulate/#type-conversions) (e.g., dictionary $\leftrightarrow$ named list). In the example demoed here, we can use `zellkonverter` to go from `AnnData` to `SingleCellExperiment`:
+Then again, `reticulate` supports few direct [type conversions](https://rstudio.github.io/reticulate/#type-conversions) (e.g. dictionary $\leftrightarrow$ named list). In the example demonstrated here, we can use `zellkonverter` to go from `AnnData` to `SingleCellExperiment`:
 
 ```{r eval=FALSE}
 #| code-fold: false
@@ -86,9 +92,10 @@ library(zellkonverter)
 # altExpNames(0):
 ```
 
-## 3. Back to Python {.unnumbered}
 
-We can also do the reverse, i.e., go from R's `SingleCellExperiment` to Python's `AnnData`:
+### Back to Python
+
+We can also do the reverse, i.e. go from R's `SingleCellExperiment` to Python's `AnnData`:
 
 ```{r eval=FALSE}
 #| code-fold: false
@@ -98,4 +105,7 @@ We can also do the reverse, i.e., go from R's `SingleCellExperiment` to Python's
 #     uns: 'X_name'
 ```
 
-## References {.unnumbered}
+
+## Appendix
+
+### References {.unnumbered}

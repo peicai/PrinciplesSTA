@@ -170,21 +170,28 @@ colData(sce)[names(cd)] <- cd[colnames(sce), ]
 rownames(sce) <- make.unique(rowData(sce)$Symbol)
 # exclude cells deemed to be of low-quality
 sce <- sce[, sce$QCFilter == "Keep"]
-# tabulate subpopulations by disease status
-sce$Group <- gsub("P[0-9]", "", sce$Patient)
-sce$Patient <- gsub("(P[0-9]).*", "\\1", sce$Patient)
+# tabulate subpopulations
 table(sce$Level1)
 ```
 
-[Here, we filter the reference data to contain only cells from the same patient. This is not strictly necessary, assuming that clusters are transcriptionally stable across patients, but helps with speeding up computations here.]{.aside} Next, we perform deconvolution with `r BiocStyle::Githubpkg("dmcable/spacexr")` (f.k.a. RCTD)[@Cable2022-RCTD]. By default, `run.RCTD()`'s `doublet_mode="doublet"`, i.e., at most two subpopulations are fit per pixel; here, we set `doublet_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
+[Here, we filter the reference data to contain only cells from the same patient, and downsample to retain a limited number of cells per subpopulation. This is not strictly necessary, assuming that clusters are transcriptionally stable across patients, but helps with reducing runtime and memory consumption here.]{.aside} Next, we perform deconvolution with `r BiocStyle::Githubpkg("dmcable/spacexr")` (f.k.a. RCTD)[@Cable2022-RCTD].
+By default, `run.RCTD()`'s `doublet_mode="doublet"`, i.e., at most two subpopulations are fit per pixel; here, we set `doublet_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
 
 ```{r dec, message=FALSE, warning=FALSE}
+# prep spatial data (Visium)
 xy <- data.frame(spatialCoords(spe))
 .spe <- SpatialRNA(xy, counts(spe))
-.sce <- sce[, sce$Patient == "P1"]
+# prep reference data (Chromium);
+# subset cells from same patient
+.sce <- sce[, grepl("P2", sce$Patient)]
+# downsample to at most 4,000 cells per cluster
+cs <- split(seq_len(ncol(.sce)), .sce$Level1)
+cs <- lapply(cs, \(.) sample(., min(length(.), 4e3)))
+.sce <- .sce[, unlist(cs)]
 ids <- factor(.sce$Level1)
 names(ids) <- colnames(.sce)
 ref <- Reference(counts(.sce), ids)
+# run 'RCTD' deconvolution
 res <- create.RCTD(.spe, ref, max_cores=th)
 res <- run.RCTD(res, doublet_mode="full")
 ```

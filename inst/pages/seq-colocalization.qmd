@@ -1,4 +1,4 @@
-# Spatial co-localization {#sec-seq-spatial-co-localization}
+# Colocalization {#sec-seq-colocalization}
 
 ## Introduction
 

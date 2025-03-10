@@ -1,0 +1,101 @@
+# Importing data {#sec-bkg-importing}
+
+## Flat file structure
+
+At present, the file structure and formats of data from spatial transcriptomics platforms varies between commercial providers.
+Nevertheless, all data are similar in their essence, e.g.: sequencing-based data include spatial locations of array spots and a count matrix; imaging-based data include transcript locations (from spot-calling), polygon boundaries (from segmentation), and a count matrix (from allocating transcripts to cells), etc.
+
+
+### Visium (10x Genomics)
+
+Running `spaceranger` on Visium data creates a set of standardized output files. These comprise raw measurement data (similar to scRNA-seq but including, e.g., spot-level coordinates, potential images), as well as results from a 'button-push' analysis pipeline that includes standard quality control, dimension reduction (PCA, t-SNE, and UMAP), graph-based clustering, etc. 
+The resulting outputs are well described [here](https://www.10xgenomics.com/support/software/space-ranger/latest/analysis/outputs/output-overview); briefly:
+
+```{r, eval=FALSE}
+Visium
+  └── outs
+    ├── spatial
+      ├── tissue_positions_list.csv # spot locations
+      └── tissue_lowres_image.png   # same-section H&E
+    └── filtered_feature_bc_matrix  # in-tissue matrix files
+    └── raw_feature_bc_matrix       # unfiltered matrix files
+         ├── barcodes.tsv # spot barcodes (i.e., sequences)
+         ├── features.tsv # gene metadata (e.g., ensembl IDs)
+         └── matrix.mtx   # (gene x spot) count matrix
+```
+
+
+### Visium HD (10x Genomics)
+
+Running `spaceranger` on Visium HD data generates outputs similar to the above, but by default includes outputs binned at a resolution of 2, 8, and 16 µm. Thus, outputs have a hierarchical structure where each `binned_outputs/` subdirectory contains files analogous to the `outs/` directory for Visium; e.g.:
+
+```{r, eval=FALSE}
+VisiumHD
+  └── binned_outputs
+    └─── square_002um
+      └── filtered_feature_bc_matrix.h5
+      └── filtered_feature_bc_matrix
+        └── barcodes.tsv.gz
+        └── features.tsv.gz
+        └── matrix.mtx.gz
+      └── raw_feature_bc_matrix.h5
+      └── raw_feature_bc_matrix
+        └── ...
+      └── spatial
+        └── tissue_positions.parquet
+        └── ...
+    └── square_*
+```
+
+
+### Xenium (10x Genomics)
+
+Running `xeniumranger` reduces raw data generated from Xenium runs to an output bundle with standardized file structure and contents. Notably, 10x Genomics provides a variety of output file formats (for example, both *.csv* and *.parquet* for gene/cell metadata), facilitating interoperability with a variety of frameworks.
+All outputs are described in detail [here](https://www.10xgenomics.com/support/software/xenium-onboard-analysis/latest/analysis/xoa-output-understanding-outputs); briefly:
+
+```{r, eval=FALSE}
+Xenium
+  └── outs 
+    ├── cells.parquet          # cell metadata (e.g., area)
+    ├── cell_feature_matrix.h5 # compressed format of the below 
+    └── cell_feature_matrix    # segmentation-derived matrix files
+      ├── barcodes.tsv # cell barcodes (i.e., sequences)
+      ├── features.tsv # gene metadata (e.g., target type)
+      └── matrix.mtx   # (gene x cell) count matrix
+    ├── transcripts.parquet        # molecule locations
+    ├── cell_boundaries.parquet    # membrane segmentation
+    ├── nucleus_boundaries.parquet # nuclear segmentation 
+    └── experiment.xenium # experiment-wide metadata (in .json format)
+```
+
+
+### CosMx (NanoString)
+
+Through [custom module scripts](https://github.com/Nanostring-Biostats/CosMxDACustomModules), the [AtoMx](https://nanostring.com/products/atomx-spatial-informatics-platform/atomx-sip-overview/) Spatial Informatics Portal (SIP) allows exporting different types of objects and, importantly, 'flat' (human-readable) file formats. Unlike raw data (e.g. images prior to spot-calling), these represent processed outputs (e.g. spatial locations of segmentation boundary vertices and molecules, segmentation-derived count matrix, etc.). A detailed description of these files is given [here](https://nanostring-biostats.github.io/CosMx-Analysis-Scratch-Space/posts/flat-file-exports/flat-files-compare.html); briefly:
+
+```{r, eval=FALSE}
+CosMx 
+  ├── exprMat_file.csv       # (gene x cell) counts
+  ├── fov_positions_file.csv # FOV corner positions
+  ├── metadata_file.csv      # cell-level metadata 
+  ├── polygons.csv           # segmentation boundaries
+  └── tx_file.csv            # molecule locations
+```
+
+
+## Reading into R
+
+Reader functions from several packages can be used to import data from raw files into a `SpatialExperiment` object (or derivatives thereof), including:
+
+- `r BiocStyle::Biocpkg("VisiumIO")` provides readers for spatial data from 10x Genomics's Space Ranger pipeline, i.e. Visium and Visium HD. This includes support for *.mtx*, *.tar.gz* and *.h5* file formats, and for reading in multiple samples at once. Data are read into a `SpatialExperiment` object.
+
+- `r BiocStyle::Biocpkg("XeniumIO")` provides functions to import 10x Genomics Xenium data into R. Notably, there is support for multiple file formats (e.g. *.h5* and *.mtx* for count data, *.parquet* and *.csv* for polygons and molecules, etc.), as well as automated distinction between RNA targets and other barcodes (e.g. negative probes, blank codes, etc.).
+
+- `r BiocStyle::Githubpkg("SpatialExperimentIO")` provides readers for a variety of imaging-based spatial transcriptomics platforms, including CosMx (Bruker), Xenium (10x Genomics), MERSCOPE (Vizgen), and seqFISH (Spatial Genomics). Data may be read into a `SingleCellExperiment` or `SpatialExperiment`.
+
+- `r BiocStyle::Biocpkg("SpatialFeatureExperiment")` provides functions to read CosMx, Xenium, MERSCOPE and Visium(HD) as `SpatialFeatureExperiment` objects.
+
+
+## Appendix
+
+### References {.unnumbered}

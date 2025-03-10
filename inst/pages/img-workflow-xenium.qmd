@@ -1,10 +1,19 @@
-# Xenium workflow {#sec-img-workflow-xenium}
+---
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+# Workflow: Xenium {#sec-img-workflow-xenium}
 
 ## Preamble
 
 ### Introduction
 
-<!-- TODO -->
+In this demo, we will analyze 313-plex Xenium data on human breast cancer tissue
+[@Janesick2023]. Following very basic quality control and preprocessing, we will 
+perform both (non-spatial) unsupervised clustering as well as fully supervised 
+label-transfer based on scRNA-seq reference data; then compare the obtained 
+cluster assignments to those provided by the authors.
 
 ### Dependencies
 
@@ -203,21 +212,24 @@ table(sce$Level1) # tabulate low-res. labels
 ncol(sce) # overall number of cells
 ```
 
+[Note that we filter the reference data to contain only cells from the same patient. This is not strictly necessary, assuming that clusters are transcriptionally stable across patients, but is done here to reduce runtime.]{.aside}
 Here, we run `SingleR` using high-res. annotations (`Level2`) and with argument
 `aggr.ref=TRUE`, such that reference profiles will be aggregated (per cluster)
 prior to annotation. In this way, every single Xenium cell will be assigned a
 label based on which pseudo-bulk scRNA-seq profile represents the best match.
 
 ```{r lv2}
-# drop unassigned cells
-sce <- sce[, sce$Level1 != "QC_Filtered"]
+# exclude cells deemed to be of low-quality
+sce <- sce[, sce$QCFilter == "Keep"]
+# subset cells from same patient
+sce <- sce[, grepl("P2", sce$Patient)]
 # realize count matrix
 assay(sce) <- as(assay(sce), "dgCMatrix")
 # log-library size normalization
 sce <- logNormCounts(sce)
 # restrict to Xenium targets
 sce <- sce[rowData(sce)$ID %in% rowData(sub)$ID, ]
-# use gene symbols as names
+# set gene symbols as feature names
 rownames(sce) <- rowData(sce)$Symbol
 # perform label transfer at the single cell-level,
 # using pseudo-bulk Chromium profiles as reference
