@@ -147,32 +147,25 @@ sce <- sce[, !is.na(sce$Annogrp)]
 dim(sce)
 ```
 
-## RCTD
+## `RCTD`
 
 Next, we perform deconvolution with `r BiocStyle::Githubpkg("dmcable/spacexr")` (f.k.a. RCTD)[@Cable2022-RCTD].
-[Note that RCTD can also be adapted to VisiumHD data with `doublet_mode="doublet"`, as demonstrated by [@Oliveira2024] and @sec-seq-workflow-visiumhd.]{.aside}
-By default, `run.RCTD()`'s `doublet_mode="doublet"`, specifies at most two subpopulations coexist in a data unit, such as a "spot"; here, we set `doublet_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
+[Note that RCTD can also be adapted to VisiumHD data with `rctd_mode="doublet"`, as demonstrated by [@Oliveira2024] and @sec-seq-workflow-visium-hd.]{.aside}
+By default, `runRctd()`'s `rctd_mode="doublet"`, specifies at most two subpopulations coexist in a data unit, such as a "spot"; here, we set `rctd_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
 
-```{r decvis, message=FALSE, warning=FALSE, results='hide'}
-# prep spatial data (Visium)
-xy <- data.frame(spatialCoords(vis))
-.vis <- SpatialRNA(xy, counts(vis))
-# prep reference data (Chromium)
-ids <- factor(sce$Annogrp)
-names(ids) <- colnames(sce)
-ref <- Reference(counts(sce), ids)
-# run 'RCDT' deconvolution
-res <- create.RCTD(.vis, ref, max_cores=10)
-res <- run.RCTD(res, doublet_mode="full")
+```{r dec, message=FALSE, warning=FALSE}
+obj <- createRctd(vis, sce, cell_type_col="Annogrp", max_cores=10)
+(res <- runRctd(obj, rctd_mode="full"))
 ```
 
-Weights inferred by `RCTD` should be normalized such that proportions of cell types sum to 1 in each spot:
+Weights inferred by `RCDT` should be normalized such that proportions of cell types sum to 1 in each spot:
 
-```{r dec-res, warning=FALSE, message=FALSE}
-# normalize weights to obtain proportions
-ws <- normalize_weights(res@results$weights)
-# add proportion estimates as spot metadata
-ws <- data.frame(as.matrix(ws))
+```{r dec-res}
+# scale weights such that they sum to 1
+ws <- assay(res)
+ws <- sweep(ws, 2, colSums(ws), `/`)
+# add proportion estimates as metadata
+ws <- data.frame(t(as.matrix(ws)))
 colData(vis)[names(ws)] <- ws[colnames(vis), ]
 ```
 

@@ -19,6 +19,7 @@ book:
         #- pages/seq-colocalization.qmd
         - pages/seq-workflow-dlpfc.qmd
         - pages/seq-workflow-visium-crc.qmd
+        - pages/seq-workflow-visium-hd.qmd
         - pages/seq-workflow-spatialibd.qmd
     - part: "Imaging-based platforms"
       chapters:

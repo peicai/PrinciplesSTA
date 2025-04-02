@@ -1,14 +1,4 @@
----
-output: html_document
-editor_options: 
-  chunk_output_type: console
----
-
 # Workflow: Visium CRC {#sec-seq-workflow-visium-crc}
-
-```{r include=FALSE}
-knitr::opts_chunk$set(cache=TRUE)
-```
 
 ## Preamble
 
@@ -175,12 +165,9 @@ table(sce$Level1)
 ```
 
 [Here, we filter the reference data to contain only cells from the same patient, and downsample to retain a limited number of cells per subpopulation. This is not strictly necessary, assuming that clusters are transcriptionally stable across patients, but helps with reducing runtime and memory consumption here.]{.aside} Next, we perform deconvolution with `r BiocStyle::Githubpkg("dmcable/spacexr")` (f.k.a. RCTD)[@Cable2022-RCTD].
-By default, `run.RCTD()`'s `doublet_mode="doublet"`, i.e., at most two subpopulations are fit per pixel; here, we set `doublet_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
+By default, `runRctd()`'s `rctd_mode="doublet"`, i.e., at most two subpopulations are fit per pixel; here, we set `rctd_mode="full"` in order to allow for an arbitrary number of subpopulations to be fit instead.
 
 ```{r dec, message=FALSE, warning=FALSE}
-# prep spatial data (Visium)
-xy <- data.frame(spatialCoords(spe))
-.spe <- SpatialRNA(xy, counts(spe))
 # prep reference data (Chromium);
 # subset cells from same patient
 .sce <- sce[, grepl("P2", sce$Patient)]
@@ -188,24 +175,20 @@ xy <- data.frame(spatialCoords(spe))
 cs <- split(seq_len(ncol(.sce)), .sce$Level1)
 cs <- lapply(cs, \(.) sample(., min(length(.), 4e3)))
 .sce <- .sce[, unlist(cs)]
-ids <- factor(.sce$Level1)
-names(ids) <- colnames(.sce)
-ref <- Reference(counts(.sce), ids)
 # run 'RCTD' deconvolution
-res <- create.RCTD(.spe, ref, max_cores=th)
-res <- run.RCTD(res, doublet_mode="full")
+obj <- createRctd(spe, .sce, cell_type_col="Level1", max_cores=10)
+(res <- runRctd(obj, rctd_mode="full"))
 ```
 
-Weights inferred by `RCTD` should be normalized such that proportions of cell types sum to 1 in each spot:
+Weights inferred by `RCDT` should be normalized such that proportions of cell types sum to 1 in each spot:
 
 ```{r dec-res}
-# normalize weights to obtain proportions
-ws <- normalize_weights(res@results$weights)
-# spot check with some tolerance in accuracy
-all(abs(rowSums(ws)-1) < 1e-12) 
-# add proportion estimates as spot metadata
-ws <- data.frame(as.matrix(ws))
-colData(spe)[names(ws)] <- ws
+# scale weights such that they sum to 1
+ws <- assay(res)
+ws <- sweep(ws, 2, colSums(ws), `/`)
+# add proportion estimates as metadata
+ws <- data.frame(t(as.matrix(ws)))
+colData(spe)[names(ws)] <- ws[colnames(spe), ]
 ```
 
 For comparison with unsupervised clustering (SNN-based Leiden), we also include assignments we would obtain if we were to assign spots the most frequent label (in terms of deconvolution estimates):

@@ -38,10 +38,10 @@ In the underlying paper, the Xenium data (2 replicates) were accompanied by cons
 
 - @Janesick2023
 - source: [10x Genomics](https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast)
-- annotations: [cell type worksheet](https://cdn.10xgenomics.com/raw/upload/v1695234604/Xenium%20Preview%20Data/Cell_Barcode_Type_Matrices.xlsx) (all platforms)
+- annotations: [cell type worksheet](https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast) (all platforms)
 - **Chromium**
-  - source: [GSM7782698](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM7782698)
-  - 37,143 genes x 708,252 cells
+  - source: [GSM7782698](https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast)
+  - 18,082 genes x 30,365 cells
 - **Visium**
   - source: [GSM7782699](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM7782699)
   - 18,085 genes x 4,992 spots
@@ -49,7 +49,6 @@ In the underlying paper, the Xenium data (2 replicates) were accompanied by cons
   - source: [GSM7780153](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM7780153), [GSM7780154](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM7780154)
   - replicate 1: 313 RNA targets x 167,780 cells
   - replicate 2: 313 RNA targets x 118,752 cells
-
 
 ### `HumanColon_Oliveira`
 

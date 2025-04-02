@@ -29,7 +29,7 @@ knitr::include_graphics("../images/Visium.png")
 
 ### 10x Genomics Visium HD
 
-The [10x Genomics Visium HD](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression) platform provides higher spatial resolution. Capture area dimensions are 6.5 x 6.5 mm, with a continuous "lawn" of capture oligonucleotides arranged into a grid of 2 x 2 µm barcoded squares, which can be aggregated into 8 x 8 µm and 16 x 16 µm bins for downstream analyses. There are no gaps between the grid squares, and there are two capture areas per slide. The high spatial resolution of the barcoded squares provide near-single-cell resolution, while the use of sequencing provides transcriptome-scale gene coverage.
+The [10x Genomics Visium HD](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression) platform provides higher spatial resolution. Capture area dimensions are 6.5 x 6.5 mm, with a continuous "lawn" of capture oligonucleotides arranged into a grid of 2 x 2 µm barcoded squares, which can be aggregated into 8 x 8 µm and 16 x 16 µm bins, or cells based on cell boundary polygon coordinates [@polanski2024bin2cell] for downstream analyses. There are no gaps between the grid squares, and there are two capture areas per slide. The high spatial resolution of the barcoded squares provide near-single-cell resolution, while the use of sequencing provides transcriptome-scale gene coverage. With its higher resolution and data coverage, increased sparsity is expected. Therefore, new computational challenges, such as careful quality control, imputation and denoising techniques, and longer computational time, should be considered when performing the analysis. 
 
 A preprint describing the platform and its application to human colorectal cancer samples is available from 10x Genomics [@Oliveira2024].
 
@@ -41,7 +41,8 @@ The Curio Seeker platform captures mRNA molecules at a set of randomly placed sp
 
 
 ## Resources
-
+- Instrument for obtaining 10x Genomics Visium (HD) data from Visium (HD) slide:
+  - [CytAssist](https://www.10xgenomics.com/instruments/visium-cytassist)
 - Commercially available datasets
   - [Visium HD datasets](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression)
   - [10x Genomics datasets (includes Visium, Visium HD)](https://www.10xgenomics.com/datasets)

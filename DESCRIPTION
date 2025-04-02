@@ -79,7 +79,9 @@ Imports:
     spatialLIBD,
     spatstat,
     spdep,
+    SpotSweeper,
     STexampleData, 
+    Statial,
     tidyr,
     VisiumIO,
     Voyager,
@@ -98,9 +100,8 @@ Suggests:
     xml2
 Remotes:
     drisso/SpaceTrooper@devel_spatialBook,
-    estellad/SpatialExperimentIO,
     estellad/OSTA.data,
-    dmcable/spacexr
+    ggrajeda/spacexr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 BiocType: Book
