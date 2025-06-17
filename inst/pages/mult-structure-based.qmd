@@ -1,0 +1,335 @@
+# Structure-based analysis {#sec-mult-structure-based}
+
+## Preamble
+
+### Introduction
+
+Spatial omics data further allow us to quantify various features that are related to tissue architecture. This allows us to perform comparisons of anatomical structure-derived features. We will refer to this type of analysis as **structure-based analysis**.
+
+We will use the `r BiocStyle::Biocpkg("sosta")` package to reconstruct and quantify pancreatic islets from human donors suffering different stages of diabetic type 1 (T1D) and healthy controls [@damondMapHumanType2019]. We will then compare some of the features between conditions.
+
+
+### Dependencies
+
+```{r, message=FALSE, warning=FALSE}
+library(sosta)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(SpatialExperiment)
+library(ExperimentHub)
+library(lme4)
+library(lmerTest)
+library(ggfortify)
+library(osfr)
+```
+
+```{r}
+set.seed(8048)
+```
+
+
+### Load data
+
+We will load the data directly from `ExperimentHub` and convert it into a `SpatialExperiment` object. To reduce runtime, we will subset the data to 15 images per patient.
+
+```{r, load-data-structs, message=FALSE, eval=FALSE}
+# load data from ExperimentHub and convert to SpatialExperiment
+# (not run due to computational limitations)
+
+eh <- ExperimentHub()
+oid <- names(eh[eh$title == "Damond_2019_Pancreas - sce - v1 - full"])
+
+sce <- eh[[oid]]
+
+spe <- toSpatialExperiment(
+  sce, 
+  sample_id = "image_name", 
+  spatialCoordsNames = c("cell_x", "cell_y"))
+
+# remove assays (for smaller object size)
+assays(spe) <- list()
+```
+
+```{r, load-data-sub-struct, message=FALSE}
+# load data from OSF repository (for smaller download)
+osf_repo <- osf_retrieve_node("https://osf.io/5n4q3/")
+osf_files <- osf_ls_files(osf_repo, path = "zzz", 
+                          pattern = "Damond_noAssays.rds", n_max = Inf)
+dir.create(td <- tempfile())
+osf_download(osf_files, path = td)
+spe <- readRDS(file.path(td, list.files(td, ".rds")))
+```
+
+
+## Visualize data
+
+Plot a few selected fields of view (FOV).
+
+```{r, plot-data, fig.width=7}
+selPl <- sample(unique(spe$image_name), 4)
+df <- cbind(colData(spe[, spe$image_name %in% selPl]), 
+            spatialCoords(spe[, spe$image_name %in% selPl]))
+
+df |> 
+  as.data.frame() |> 
+  ggplot(aes(x = cell_x, y = cell_y, color = cell_category)) + 
+  geom_point(size = 0.5) + 
+  facet_wrap( ~ image_name, ncol = 2) + 
+  coord_equal() + 
+  theme_classic() + 
+  scale_color_manual(values=unname(pals::okabe(n = 5)))
+```
+
+
+## Islet reconstrution
+
+Next we will reconstruct or segment the individual islet using a density-based approach implemented in `r BiocStyle::Biocpkg("sosta")`.
+
+```{r, estimate-params, fig.width=4.5}
+n <- estimateReconstructionParametersSPE(
+  spe, 
+  marks = "cell_category", 
+  imageCol = "image_name", 
+  markSelect = "islet", 
+  nImages = 10, # number of images for estimating parameters 
+  nCores = 4
+)
+
+thresSPE <- mean(n$thres)
+bndwSPE <- mean(n$bndw)
+```
+
+
+::: {.callout-note collapse="true" title="Density based reconstruction"}
+
+The `r BiocStyle::Biocpkg("sosta")` package uses a reconstruction method based on the point pattern *density* of the islet cells. This method needs two parameters -- a bandwidth parameter that is used for the estimation of the intensity profile, and a threshold based on which the islets are reconstructed.
+
+```{r, fig.width=7.5}
+shapeIntensityImage(
+  spe, 
+  marks = "cell_category", 
+  imageCol = "image_name", 
+  imageId = selPl[4], 
+  markSelect = "islet"
+)
+```
+
+Shown on the left is a density (pixel-level) image, and on the right a histogram of the intensity values. The method selects every pixel above a certain threshold for reconstruction. The smoothing bandwidth that generates the image is estimated using cross-validation (see function `bw.diggle()` of the `r BiocStyle::CRANpkg("spatstat.explore")` package from CRAN).
+
+The threshold is estimated by taking the mean between the two modes of the (truncated) pixel intensity distribution. The function `estimateReconstructionParametersSPE()` repeats the estimation of these parameters for a selection of images in the dataset.
+
+To make the reconstruction comparable between images we then use a fixed set of parameters for all images, in our case the mean of the individual parameters for a subset of the dataset.
+
+:::
+
+
+```{r}
+# run on all images
+allIslets <- reconstructShapeDensitySPE(
+  spe, 
+  marks = "cell_category", 
+  imageCol = "image_name", 
+  markSelect = "islet", 
+  bndw = bndwSPE, 
+  thres = thresSPE, 
+  nCores = 4
+)
+```
+
+Now we can inspect the reconstruction in the sample images.
+
+```{r, fig.width=7}
+df <- cbind(colData(spe[, spe$image_name %in% selPl]), 
+            spatialCoords(spe[, spe$image_name %in% selPl]))
+
+df |> 
+  as.data.frame() |> 
+  ggplot(aes(x = cell_x, y = cell_y, color = cell_category)) + 
+  geom_point(size = 0.25) + 
+  facet_wrap(~ image_name, ncol = 2) + 
+  coord_equal() + 
+  theme_classic() + 
+  scale_color_manual(values=unname(pals::okabe(n = 5))) + 
+  geom_sf(
+    data = allIslets[allIslets$image_name %in% selPl, ], 
+    inherit.aes = FALSE, 
+    color = "firebrick", 
+    fill = NA, 
+    linewidth = 0.75
+  )
+```
+
+The `allIslets` object is a [simple feature collection](https://r-spatial.github.io/sf/articles/sf1.html) which contains polygons (`<GEOMETRY>` column), a structure identifier (`structID`), and the image identifier (`image_name`). We will add some patient metadata to the object.
+
+```{r}
+colsKeep <- c(
+  "patient_stage", 
+  "tissue_slide", 
+  "tissue_region", 
+  "patient_id", 
+  "patient_disease_duration", 
+  "patient_age", 
+  "patient_gender", 
+  "sample_id"
+)
+
+# specify factor levels
+lv <- c("Non-diabetic", "Onset", "Long-duration")
+
+patientData <- colData(spe) |> 
+  as_tibble() |> 
+  group_by(image_name) |> 
+  select(all_of(colsKeep)) |> 
+  mutate(patient_stage = factor(patient_stage, levels = lv)) |> 
+  unique()
+
+allIslets <- allIslets |> 
+  dplyr::left_join(patientData, by = "image_name")
+```
+
+
+## Quantification of geometric features
+
+Now we can proceed with quantification of geometric aspects of the islets and combine them with patient information.
+
+```{r}
+isletMetrics <- totalShapeMetrics(allIslets)
+allIslets <- allIslets |> 
+  cbind(t(isletMetrics))
+```
+
+PCA can give us an overview of the different features. Each dot represents one structure.
+
+```{r, fig.width=6.5}
+autoplot(
+  prcomp(t(isletMetrics), scale. = TRUE), 
+  x = 1, 
+  y = 2, 
+  data = allIslets, 
+  color = "patient_stage", 
+  size = 2, 
+  # shape = "type", 
+  loadings = TRUE, 
+  loadings.colour = "steelblue3", 
+  loadings.label = TRUE, 
+  loadings.label.size = 3, 
+  loadings.label.repel = TRUE, 
+  loadings.label.colour = "black"
+) + 
+  theme_bw() + 
+  coord_fixed() + 
+  scale_color_manual(values = unname(pals::tol(n = 3)))
+```
+
+```{r, fig.width=6}
+allIslets |> 
+  sf::st_drop_geometry() |> 
+  select(patient_stage, rownames(isletMetrics)) |> 
+  pivot_longer(-patient_stage) |> 
+  filter(name %in% c("Area", "Compactness", "Curl")) |> 
+  ggplot(aes(x = patient_stage, y = value, fill = patient_stage)) + 
+  geom_violin() + 
+  geom_boxplot(aes(fill = NULL), width = 0.3) + 
+  facet_wrap( ~ name, scales = "free") + 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) + 
+  guides(fill = "none") + 
+  theme_bw() + 
+  scale_fill_manual(values = unname(pals::tol(n = 3)))
+```
+
+Let's focus on the area of the islets and facet by patient to look at patient variability. As the distribution is very skewed we will use a 1/4-power transformation on the area of the islets. The transformation was chosen after inspection of the model diagnostics (see below).
+
+```{r, fig.width=6}
+allIslets |> 
+  sf::st_drop_geometry() |> 
+  select(patient_stage, patient_id,  rownames(isletMetrics)) |> 
+  pivot_longer(-c(patient_stage, patient_id)) |> 
+  filter(name %in% c("Area")) |> 
+  ggplot(aes(x = as.factor(patient_id), y = value^(1/4), fill = patient_stage)) + 
+  geom_violin() + 
+  geom_boxplot(aes(fill = NULL), width = 0.3) + 
+  facet_wrap( ~ patient_stage, scales = "free") + 
+  #scale_x_discrete(guide = guide_axis(n.dodge = 2)) + 
+  guides(fill = "none") + 
+  theme_bw() + 
+  scale_fill_manual(values = unname(pals::tol(n = 3)))
+```
+
+
+## Between-sample comparison using mixed effects models
+
+The individual structure metrics are not independent measurements. Therefore, we have to account for correlation between measurements. This correlation stems from repeated measurements on the patient and slide level.
+
+To account for this, we will use mixed linear models with random effects for the patient and the individual slides (image name). The `r BiocStyle::CRANpkg("lme4")` package will be use for fitting linear mixed effects models [@batesFittingLinearMixedEffects2015] and `r BiocStyle::CRANpkg("lmerTest")` for p-value calculation [@kuznetsovaLmerTestPackageTests2017].
+
+```{r}
+mod <- lmer((Area)^(1/4) ~ patient_stage + (1 | patient_id) + (1 | image_name), 
+            data = allIslets)
+```
+
+
+::: {.callout-note collapse="true" title="Model diagnostics"}
+
+## Residuals vs. fitted
+
+```{r, fig.width=6}
+plot(
+  mod, 
+  resid(., scaled = TRUE) ~ fitted(.), 
+  col = allIslets$patient_id, 
+  pch = 12, 
+  abline = 0, 
+  xlab = "Fitted values", 
+  ylab = "Standardised residuals"
+)
+```
+
+
+## Residuals vs. fitted per sample
+
+```{r, fig.width=7}
+plot(
+  mod, 
+  resid(., scaled = TRUE) ~ fitted(.) | patient_id, 
+  abline = 0, 
+  pch = 12, 
+  xlab = "Fitted values", 
+  ylab = "Standardised residuals"
+)
+```
+
+## QQ plot
+
+```{r, fig.width=5}
+qqnorm(resid(mod), pch = 16)
+qqline(resid(mod))
+```
+
+:::
+
+
+```{r}
+summary(mod)
+```
+
+From the fixed effects section in `summary(mod)` we note that there is a statistically significant difference in the transformed islet area of long-duration patients with respect to non-diabetic patients, while the effect for onset patients is not significant at the 5\% level. This results accounts for correlation at the patient and image level as modeled by random intercepts. The transformation (1/4-power) was chosen after inspection of the residual behavior in the model diagnostics for this dataset and feature of interest specifically.
+
+
+## Appendix
+
+### Other packages
+
+Additional packages to calculate anatomical structure-derived features include:
+
+* The Bioconductor packages `r BiocStyle::Biocpkg("SPIAT")` and `r BiocStyle::Biocpkg("imcRtools")` offer other functions to quantify features on the anatomical structure level. These could also be input for mixed effect modeling as illustrated above.
+
+* The packages `r BiocStyle::CRANpkg("vegan")` and `r BiocStyle::Biocpkg("poem")` are useful when calculating diversity metrics within structures and / or border regions. To identify border regions and how to overlap anatomical regions with sample coordinates please have a look at the `r BiocStyle::Biocpkg("sosta")` vignette.
+
+
+### Notes
+
+* This chapter is based on the `r BiocStyle::Biocpkg("sosta")` vignette "2. Reconstruction and analysis of pancreatic islets from IMC data".
+
+
+### References {.unnumbered}

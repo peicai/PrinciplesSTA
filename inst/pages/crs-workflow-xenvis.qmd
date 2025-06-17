@@ -29,7 +29,7 @@ same-section Visium and Xenium measurements on human breast cancer tissue.
 ![H&E staining](../images/xenvis-visium.png){height=300px}
 ![Xenium IF](../images/xenvis-xenium.png){height=300px}
 
-## Setup
+## Setup {#sec-crs-workflow-xenvis-load-data}
 
 We start out by retrieving these datasets from the OSF repository, and reading 
 them into R as separate `r BiocStyle::Biocpkg("SpatialExperiment")` objects:
@@ -71,18 +71,8 @@ rownames(xen) <- make.unique(rowData(xen)$Symbol)
 
 To align Xenium and Visium sections, we use the affine transformation matrix 
 provided by 10x Genomics, which was obtained by registration of Xenium onto 
-Visium in Python with the Fiji [@10xGenomics2023-Fiji] Java plug-in.
-
-An affine map is generally composed of a linear map (scaling and rotation) 
-and a translation, and can be apply using basic matrix multiplication and 
-vector addition, specifically:
-
-$$\mathbf{y}=A\mathbf{x}+\mathbf{b}$$
-
-where $A$ denotes the linear map, $b$ the translation, and $\mathbf{x}$ and 
-$\mathbf{y}$ correspond to original and transformed coordinates, respectively.
-
-In R, this translates to the following operations:
+Visium in Python with the Fiji [@10xGenomics2023-Fiji] Java plug-in; see
+@sec-crs-registration for details.
 
 ```{r mtx}
 # affine matrix for aligning Xenium onto Visium
@@ -137,7 +127,7 @@ Let's count and visualize the number of cells that overlap each spot:
 ```{r plt-ncs, message=FALSE, fig.width=3.5, fig.height=3}
 # get cell indices and number of cells per spot
 vis$n_cells <- rowSums((idx <- nns$nn.idx) > 0)
-plotSpots(vis, annotate="n_cells")
+plotCoords(vis, annotate="n_cells")
 ```
 
 Next, we can aggregate single cell-level Xenium data into pseudo-spots. 
@@ -288,6 +278,7 @@ plotVisium(res,
 
 From here on out, both datasets could be analyzed together and/or independently, 
 e.g., in order to identify cluster markers, annotate cell subpopulations etc.
+
 
 ## Appendix
 

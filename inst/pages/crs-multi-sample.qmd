@@ -1,4 +1,0 @@
-# Multiple-sample differential expression
-
-
-## References {.unnumbered}

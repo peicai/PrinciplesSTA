@@ -1,0 +1,201 @@
+# Differential colocalization {#sec-mult-diff-colocalization}
+
+## Preamble
+
+### Introduction
+
+In this section we will explore tools to assess differential colocalization between conditions with the two packages `r BiocStyle::Biocpkg("spicyR")` and `r BiocStyle::Biocpkg("spatialFDA")`. Both packages are based the comparison of known spatial statistics functions implemented in the package `r BiocStyle::CRANpkg("spatstat")`.
+
+
+### Dependencies
+
+```{r, setup, warning=FALSE, message=FALSE}
+library(SpatialExperiment)
+library(spatialFDA)
+library(spicyR)
+library(refund)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(osfr)
+library(ggplot2)
+```
+
+
+### Load data
+
+For this example, we use a dataset on type I diabetes (T1D) [@damondMapHumanType2019]. This dataset contains three conditions (non-diabetic, onset, and long-duration diabetes), several patients per condition, and several fields-of-view per patient. This hierarchical setup requires the modeler to account for correlation between fields-of-view, for example if they stem from the same patient. Such a setup can be modeled with mixed models.
+
+```{r, load-data, warning=FALSE, eval=FALSE}
+# load data from full dataset (not run due to computational limitations)
+spe <- .loadExample(full = TRUE)
+# subset data to smaller example
+spe <- subset(spe, , patient_id %in% c(6089, 6180, 6126, 6134, 6228, 6414))
+# remove assays (for smaller object size)
+assays(spe) <- list()
+```
+
+```{r, load-data-sub-coloc, message=FALSE}
+# load data from OSF repository (for smaller download)
+osf_repo <- osf_retrieve_node("https://osf.io/5n4q3/")
+osf_files <- osf_ls_files(osf_repo, path = "zzz", 
+                          pattern = "Damond_noAssays.rds", n_max = Inf)
+dir.create(td <- tempfile())
+osf_download(osf_files, path = td)
+spe <- readRDS(file.path(td, list.files(td, ".rds")))
+
+# subset patient IDs
+spe <- subset(spe, , patient_id %in% c(6089, 6180, 6126, 6134, 6228, 6414))
+
+colData(spe)$cell_type <- as.factor(colData(spe)$cell_type)
+colData(spe)$patient_stage <- as.factor(colData(spe)$patient_stage) |> 
+                              relevel("Non-diabetic")
+```
+
+
+## spicyR
+
+First, we show the functionality of `r BiocStyle::Biocpkg("spicyR")`. This package condenses the information of a spatial statistics curve to a scalar value and models this continuous value as the response in a linear (mixed) effects model [@Canete2022].
+
+```{r, spicyR}
+colData(spe)$cellType <- colData(spe)$cell_type
+colData(spe)$cell_type <- as.factor(colData(spe)$cell_type)
+
+# note runtime: ~5 min
+spicyTestPair <- spicy(
+  spe, 
+  condition = "patient_stage", 
+  imageID = "image_number", 
+  window = "square", 
+  cores = 4
+)
+
+out <- topPairs(spicyTestPair, n = 27)
+out
+```
+
+We can plot the results as a heatmap.
+
+```{r, spicyR-heatmap, warning=FALSE, message=FALSE, fig.width=7}
+signifPlot(
+  spicyTestPair, 
+  breaks = c(-3, 3, 1)
+)
+```
+
+
+## spatialFDA
+
+The `r BiocStyle::Biocpkg("spatialFDA")` package computes spatial statistics functions and compares these with tools from functional data analysis (FDA). We will consider the colocalization of $\alpha$ cells in the islet and cytoxic T-cells, which are important in the destruction of islet cells in T1D [@damondMapHumanType2019].
+
+This example is adapted from the [spatialFDA vignette](https://bioconductor.org/packages/devel/bioc/vignettes/spatialFDA/inst/doc/DiabetesIsletExample.html).
+
+```{r, calcMetric}
+metricRes <- calcMetricPerFov(
+  spe = spe, 
+  selection = c("alpha", "Tc"), 
+  subsetby = "image_number", 
+  fun = "Gcross", 
+  marks = "cell_type", 
+  rSeq = seq(0, 50, length.out = 50), 
+  by = c("patient_stage", "patient_id", "image_number"), 
+  ncores = 1
+)
+```
+
+First, we will plot the functional box plot of the square-root transformed spatial statistics functions [@Sun2011-functional].
+
+```{r, visualise, warning=FALSE, message=FALSE, fig.width=5}
+metricRes$ID <- paste0(
+  metricRes$patient_stage, "x", metricRes$patient_id, 
+  "x", metricRes$image_number
+)
+
+# removing field of views that have as a curve only zeros - these are cases
+# where there are no cells of one type
+metricRes <- metricRes %>% dplyr::group_by(ID) %>% dplyr::filter(sum(rs) >= 1)
+
+# sqrt transform response
+metricRes$rs <- sqrt(metricRes$rs)
+
+collector <- plotFbPlot(metricRes, "r", "rs", "patient_stage")
+```
+
+The black line indicates the median curve, the purple region is the 50% central region, and the red lines indicate outliers.
+
+From these plots we note that onset functions seem to qualitatively have a higher median curve than non-diabetic or long-duration diabetes functions.
+
+Another exploratory technique is functional PCA (FPCA). FPCA is similar to standard PCA in that it decomposes the functional data into the main modes of variation. Here, we decompose into eigenfunctions [@Goldsmith2024-refund-package].
+
+```{r, fPCA, fig.width=8}
+# filter out all rows that have a constant zero part - all r < 10
+metricRes <- metricRes %>% filter(r > 10)
+
+# prepare data frame from calcMetricRes to be in the correct format for pffr
+dat <- prepData(metricRes, "r", "rs")
+
+# create meta info of the IDs
+splitData <- dat$ID %>% 
+  str_replace("-","_") %>% 
+  str_split_fixed("x", 3) %>% 
+  data.frame(stringsAsFactors = TRUE) %>% 
+  setNames(c("condition", "patient_id", "imageId")) %>% 
+  mutate(condition = relevel(condition,"Non_diabetic"))
+
+dat <- cbind(dat, splitData)
+
+# drop rows with NA
+dat <- dat |> drop_na()
+
+# calculate the fPCA
+pca <- functionalPCA(dat = dat, r = metricRes$r |> unique(), pve = 0.995)
+evalues <- pca$evalues
+efunctions <- pca$efunctions
+
+plotFpca(dat = dat, res = pca, colourby = "condition") + 
+  labs(color = "condition")
+```
+
+From the FPCA we note that the variability in onset diabetes curves is larger than the other two categories.
+
+Next, we will show how FDA techniques can be used to make inference on the spatial statistics curves. We use a generalized additive mixed model with a functional response [@Scheipl2015-functional-additive; @Scheipl2016-generalized-functional-additive; @Goldsmith2024-refund-package].
+
+```{r, fGAM, fig.width=5.5}
+# create design matrix
+mm <- model.matrix(~ condition, data = dat)
+colnames(mm)[1] <- "Intercept"
+mm %>% head()
+
+r <- metricRes$r |> unique()
+
+# fit the model
+mdl <- functionalGam(
+    data = dat, x = r, 
+    designmat = mm, weights = dat$npoints, 
+    formula = formula(Y ~ 1 + conditionLong_duration + 
+                          conditionOnset + s(patient_id, bs = "re")), 
+    family = mgcv::scat(link = "log"), 
+    algorithm = "gam"
+)
+
+summary(mdl)
+
+plotLs <- lapply(colnames(mm), plotMdl, mdl = mdl, 
+                 shift = mdl$coefficients[["(Intercept)"]])
+
+patchwork::wrap_plots(plotLs, nrow = 3, axes = "collect")
+```
+
+With the functional GAM we see not only the effect (increased or decreased colocalization in comparison to the reference category) but also at which scale this effect is strong.
+
+The Q-Q plot indicates a reasonable model fit, although not perfect.
+
+```{r, fig.width=5}
+qqnorm(resid(mdl), pch = 16)
+qqline(resid(mdl))
+```
+
+
+## Appendix
+
+### References {.unnumbered}

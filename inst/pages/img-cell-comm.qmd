@@ -1,8 +1,15 @@
-# Cell communication
+# Cell-cell communication
 
-Might be worth giving an example of using `reticulate/basilisk` to call a Python method here, to show interoperability is pretty straightforward (granted inputs and outputs are easily convertible).  
+## Introduction
 
-E.g., my personal pipeline does something like this to call `COMMOT`, an optimal transport-based approach that models competition between sender and receiver signals, considers physical distances, and easily links to public databases:
+Cell-cell communication analyses aim to investigate how cells or cell types interact with each other through signaling mechanisms within tissues.
+
+Here, we demonstrate a short example using `COMMOT` [@Cang2023-COMMOT], an optimal transport-based approach that models competition between sender and receiver signals, considers physical distances, and easily links to public databases.
+
+Since `COMMOT` is available as a Python package, we can access it using `r BiocStyle::Biocpkg("reticulate")` / `r BiocStyle::Biocpkg("basilisk")` (see @sec-bkg-interoperability).
+
+
+## Example
 
 ```{r eval=FALSE}
 # dependencies
@@ -15,7 +22,7 @@ suppressPackageStartupMessages({
 })
 
 # setup
-bp <- MulticoreParam(10)
+bp <- MulticoreParam(4)
 . <- "~/software/mambaforge/bin/conda"
 options(reticulate.conda_binary=.)
 use_condaenv("commot")
@@ -68,4 +75,7 @@ sr <- bplapply(is, BPPARAM=bp, \(.) {
 })
 ```
 
-## References {.unnumbered}
+
+## Appendix
+
+### References {.unnumbered}

@@ -1,8 +1,3 @@
----
-output: html_document
-editor_options: 
-  chunk_output_type: inline
----
 # Workflow: Xenium {#sec-img-workflow-xenium}
 
 ## Preamble
@@ -15,7 +10,7 @@ perform both (non-spatial) unsupervised clustering as well as fully supervised
 label-transfer based on scRNA-seq reference data; then compare the obtained 
 cluster assignments to those provided by the authors.
 
-### Dependencies
+### Dependencies {#sec-img-workflow-xenium-load-data}
 
 ```{r load-libs, message=FALSE, warning=FALSE}
 library(dplyr)
@@ -34,7 +29,7 @@ library(DropletUtils)
 library(SpatialExperiment)
 library(SpatialExperimentIO)
 # set parallelization
-bp <- MulticoreParam(10)
+bp <- MulticoreParam(4)
 # set seed for random number generation
 # in order to make results reproducible
 set.seed(112358)
@@ -300,7 +295,7 @@ visualize selected markers as a heatmap of (z-scaled) average expression.
 It's comforting to see that we pick up on many classics, e.g., endothelia 
 are marked by VWF and PECAM1, T cells by CD2 and TRAC, etc.
 
-```{r mgs, fig.width=3, fig.height=6}
+```{r mgs, fig.width=3.5, fig.height=7}
 # test for differential expression between clusters
 mgs <- findMarkers(sub, groups=sub$Level1, direction="up")
 # select top-ranked genes for every cluster
@@ -310,4 +305,7 @@ plotGroupedHeatmap(sub,
     scale=TRUE, center=TRUE, fontsize=6)
 ```
 
-## References {.unnumbered}
+
+## Appendix
+
+### References {.unnumbered}

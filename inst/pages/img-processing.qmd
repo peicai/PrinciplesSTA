@@ -106,7 +106,7 @@ Let's visualize the assignment obtains from non-spatial and spatially aware clus
 # TODO: 'ggspavis' is being a bit pedantic...
 spe$in_tissue <- 1; spe$x_centroid <- spe$y_centroid <- NULL
 lapply(c("Label", "Leiden", "Banksy"), \(.) {
-    plt <- plotSpots(spe, annotate=.)
+    plt <- plotCoords(spe, annotate=.)
     plt$layers[[1]]$aes_params$stroke <- 0
     plt$layers[[1]]$aes_params$size <- 0.2
     plt
@@ -116,13 +116,15 @@ lapply(c("Label", "Leiden", "Banksy"), \(.) {
     scale_color_manual(values=unname(pals::trubetskoy()))
 ```
 
+
 ## Appendix
 
-### Saving {.unnumbered}
+### Save data {.unnumbered}
 
 ```{r save-data}
 colLabels(spe) <- spe$Banksy
 saveRDS(spe, "img-spe_cl.rds")
 ```
+
 
 ### References {.unnumbered}

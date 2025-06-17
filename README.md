@@ -34,9 +34,10 @@ Please send pull requests into `sandbox` branch (instead of `devel`). This will 
 
 ### Local build
 
-To build a local version of the book, run the following in an R session in the `inst/` directory (after installing all dependencies):
+To build a local version of the book, first install all dependency packages (from `DESCRIPTION`) manually. Then, run `quarto_render()` in an R session in the `inst/` directory as follows:
 
 ```
+setwd("inst")
 quarto::quarto_render(cache = TRUE)
 ```
 

@@ -19,18 +19,22 @@ We further compare these to DEGs as well as HVGs, and discuss the conceptual sim
 library(DESpace)
 library(dplyr)
 library(ggspavis)
+library(ggrepel)
 library(nnSVG)
 library(patchwork)
 library(scater)
 library(scran)
 library(SpatialExperiment)
 library(tidyr)
+```
+
+```{r, message=FALSE, warning=FALSE}
 # set seed for random number generation
 # in order to make results reproducible
 set.seed(123)
 # load data from previous chapters
 # (post quality control & clustering)
-(spe <- readRDS("seq-spe_cl.rds"))
+spe <- readRDS("seq-spe_cl.rds")
 ```
 
 ## Non-spatial
@@ -87,42 +91,42 @@ Methods that belong to this category include `r BiocStyle::Biocpkg("DESpace")` [
 They analyze interaction effects between cell types and spatial coordinates [@Yan2024-SVG].
 Examplary methods in R include `r BiocStyle::Biocpkg("CTSV")` [@Yu2022-CTSV], *C-SIDE* (implemented in `r BiocStyle::Githubpkg("dmcable/spacexr")`; [@Cable2022-C-SIDE]), and `r BiocStyle::Githubpkg("shanyu-stat/spVC")` [@Yu2024-spVC].
 
-### `nnSVG`
+### nnSVG
 
 In this example, we use a small subset of the dataset for faster runtime. We select a subset of the data, by subsampling the set of spots and including stringent filtering for lowly expressed genes. 
 [A full analysis with `nnSVG` using all spots for this dataset and default filtering parameters for an individual Visium sample from human brain tissue (available from `r BiocStyle::Biocpkg("spatialLIBD")`) takes around 45 minutes on a standard laptop.]{.aside}
 
-```{r svg-nnSVG, message=FALSE, eval=FALSE}
-# # set random seed for number generation
-# # in order to make results reproducible
-# set.seed(123)
-# # sample 100 spots to decrease runtime in this demo
-# # (note: skip this step in full analysis)
-# n <- 100
-# sub <- spe[, sample(ncol(spe), 100)]
-# # filter lowly expressed genes using stringent
-# # criteria to decrease runtime in this demo
-# # (note: use default criteria in full analysis)
-# sub <- filter_genes(sub,     # filter for genes with...
-#     filter_genes_ncounts=10, # at least 10 counts in
-#     filter_genes_pcspots=3)  # at least 3% of spots
-# # re-normalize counts post-filtering
-# sub <- logNormCounts(sub)
-# 
-# # run nnSVG
-# set.seed(123)
-# sub <- nnSVG(sub)
-# 
-# # extract gene-level results
-# res_nnSVG <- rowData(sub)
-# # show results
-# head(res_nnSVG, 3)
-# # count significant SVGs (at 5% FDR significance level)
-# table(res_nnSVG$padj <= 0.05)
-# # identify the top-ranked SVGs
-# res_nnSVG$gene_name[res_nnSVG$rank == 1]
-# # store the top 7 SVGs
-# top_nnSVG <- res_nnSVG$gene_name[res_nnSVG$rank < 7.5]
+```{r svg-nnSVG, message=FALSE}
+# set random seed for number generation
+# in order to make results reproducible
+set.seed(123)
+# sample 100 spots to decrease runtime in this demo
+# (note: skip this step in full analysis)
+n <- 100
+sub <- spe[, sample(ncol(spe), 100)]
+# filter lowly expressed genes using stringent
+# criteria to decrease runtime in this demo
+# (note: use default criteria in full analysis)
+sub <- filter_genes(sub,     # filter for genes with...
+    filter_genes_ncounts=10, # at least 10 counts in
+    filter_genes_pcspots=3)  # at least 3% of spots
+# re-normalize counts post-filtering
+sub <- logNormCounts(sub)
+
+# run nnSVG
+set.seed(123)
+sub <- nnSVG(sub)
+
+# extract gene-level results
+res_nnSVG <- rowData(sub)
+# show results
+head(res_nnSVG, 3)
+# count significant SVGs (at 5% FDR significance level)
+table(res_nnSVG$padj <= 0.05)
+# identify the top-ranked SVGs
+res_nnSVG$gene_name[res_nnSVG$rank == 1]
+# store the top 7 SVGs
+top_nnSVG <- res_nnSVG$gene_name[res_nnSVG$rank < 7.5]
 ```
 
 ### `DESpace`
@@ -131,15 +135,15 @@ In this example, we use a small subset of the dataset for faster runtime. We sel
 
 ```{r plt-clu-xy, message=FALSE, fig.width=3.5, fig.height=3}
 #| code-fold: true
-plotSpots(spe, 
+plotCoords(spe, 
     annotate="BayesSpace") +
     theme(legend.key.size=unit(0, "lines")) +
     scale_color_manual(values=unname(pals::trubetskoy()))
 ```
 
-```{r svg-DESpace}
+```{r svg-DESpace, message=FALSE}
 # run DESpace
-res <- DESpace_test(spe, spatial_cluster="BayesSpace")
+res <- svg_test(spe, cluster_col="BayesSpace")
 head(res_DESpace <- res$gene_results)
 # count significant SVGs (at 5% FDR significance level)
 table(res_DESpace$FDR <= 0.05)
@@ -174,7 +178,7 @@ idx <- match(unlist(gs), rowData(spe)$gene_id)
 .gs <- rowData(spe)$gene_name[idx]
 # expression plots for each top gene
 ps <- lapply(seq_along(.gs), \(.) {
-    plotSpots(spe, 
+    plotCoords(spe, 
         point_size=0,
         annotate=.gs[.], 
         assay_name="logcounts", 
@@ -197,73 +201,76 @@ While all four methods - HVGs, DEGs, SVGs identified through `nnSVG` and `DESpac
 ```{r plt-data, message=FALSE}
 #| code-fold: true
 # subset data for the 113 genes nnSVG is based on
-# sub_gene <- rowData(sub)$gene_id
-# sub_DESpace <- res_DESpace[sub_gene, ] 
-# sub_HVG <- as.data.frame(dec[sub_gene, ])
-# 
-# # aggregate DEGs for each spatial domain
-# subset_mgs <- lapply(mgs, \(x) x[sub_gene, 1:3] |> as.data.frame())
-# sub_DEG <- do.call(cbind, subset_mgs) 
-# top_cols <- sub_DEG |> select(ends_with(".Top"))
-# sub_DEG$Top <- do.call(pmin, c(top_cols, na.rm = TRUE))
-# 
-# # compute ranks 
-# sub_DESpace$rank <- rank(sub_DESpace$FDR, ties.method = "first")
-# sub_HVG$rank <- rank(-1 * sub_HVG$bio, ties.method = "first")
-# sub_DEG$rank <- rank(sub_DEG$Top, ties.method = "first")
-# 
-# # combine 'rank' column for each method
-# res_all <- list(
-#     nnSVG = as.data.frame(res_nnSVG),
-#     DESpace = sub_DESpace, HVGs = sub_HVG, DEGs = sub_DEG
-# )
-# rank_all <- do.call(cbind, lapply(res_all, `[[`, "rank"))
-# rank_all <- data.frame(gene_id = sub_gene, rank_all)
+sub_gene <- rowData(sub)$gene_id
+sub_DESpace <- res_DESpace[sub_gene, ] 
+sub_HVG <- as.data.frame(dec[sub_gene, ])
+
+# aggregate DEGs for each spatial domain
+subset_mgs <- lapply(mgs, \(x) x[sub_gene, 1:3] |> as.data.frame())
+sub_DEG <- do.call(cbind, subset_mgs) 
+top_cols <- sub_DEG |> select(ends_with(".Top"))
+sub_DEG$Top <- do.call(pmin, c(top_cols, na.rm = TRUE))
+
+# compute ranks 
+sub_DESpace$rank <- rank(sub_DESpace$FDR, ties.method = "first")
+sub_HVG$rank <- rank(-1 * sub_HVG$bio, ties.method = "first")
+sub_DEG$rank <- rank(sub_DEG$Top, ties.method = "first")
+
+# combine 'rank' column for each method
+res_all <- list(
+    nnSVG = as.data.frame(res_nnSVG),
+    DESpace = sub_DESpace, HVGs = sub_HVG, DEGs = sub_DEG
+)
+rank_all <- do.call(cbind, lapply(res_all, `[[`, "rank"))
+rank_all <- data.frame(gene_id = sub_gene, rank_all)
 ```
 
 ```{r plt-scatter-nnsvg, message=FALSE, fig.width=10, fig.height=7}
 #| code-fold: true
 # known SVGs for this data
-# known_genes <- c("MOBP", "SNAP25")
-# # convert data structure
-# rank_long <- rank_all |>
-#     left_join(data.frame(rowData(sub)[, c("gene_id", "gene_name")]), by = "gene_id") |>
-#     select(all_of(c("gene_name", method_names))) |>
-#     pivot_longer(cols = c(nnSVG, DESpace, HVGs, DEGs), 
-#                  names_to = "method", 
-#                  values_to = "rank")
-# # all pairwise comparisons
-# df_pairs <- t(combn(method_names, 2)) |> as.data.frame()
-# # function to plot each pairwise comparison
-# plot_pairwise_comparison <- function(m1, m2, df) {
-#   # filter the data for the two methods being compared
-#   df <- df |>
-#       filter(method %in% c(m1, m2)) |>
-#       pivot_wider(names_from = method, values_from = rank)
-#   # compute pearson correlation between methods
-#   cor_val <- cor(df[[m1]], df[[m2]], method = "spearman")
-#   # plot
-#   ggplot(df, aes(x = .data[[m1]], y = .data[[m2]])) +
-#       geom_point() + 
-#       geom_text_repel(data = df %>% filter(gene_name %in% known_genes), 
-#                       aes(label = gene_name), color = "red", size = 3.25, 
-#                       nudge_x = 50, nudge_y = 10, box.padding = 0.5) +
-#       labs(x = paste(m1, "rank"), y = paste(m2, "rank"),
-#            title = paste(m2, "vs.", m1, ": Cor = ", round(cor_val, 2))) +
-#       #scale_color_manual(values = c("darkorange", "firebrick3", "deepskyblue2")) +
-#       theme_bw() + coord_fixed() + 
-#       xlim(c(0, 120)) + ylim(c(0, 120))
-# }
-# 
-# # generate and display all pairwise comparison plots
-# plots <- lapply(seq_len(nrow(df_pairs)), \(i) {
-#     plot_pairwise_comparison(df_pairs[i, 2], df_pairs[i, 1],rank_long)
-# })
-# 
-# wrap_plots(plots, ncol = 3)
+known_genes <- c("MOBP", "SNAP25")
+# method names
+method_names <- c("nnSVG", "DESpace", "HVGs", "DEGs")
+# convert data structure
+rank_long <- rank_all |>
+    left_join(data.frame(rowData(sub)[, c("gene_id", "gene_name")]), by = "gene_id") |>
+    select(all_of(c("gene_name", method_names))) |>
+    pivot_longer(cols = c(nnSVG, DESpace, HVGs, DEGs), 
+                 names_to = "method", 
+                 values_to = "rank")
+# all pairwise comparisons
+df_pairs <- t(combn(method_names, 2)) |> as.data.frame()
+# function to plot each pairwise comparison
+plot_pairwise_comparison <- function(m1, m2, df) {
+  # filter the data for the two methods being compared
+  df <- df |>
+      filter(method %in% c(m1, m2)) |>
+      pivot_wider(names_from = method, values_from = rank)
+  # compute pearson correlation between methods
+  cor_val <- cor(df[[m1]], df[[m2]], method = "spearman")
+  # plot
+  ggplot(df, aes(x = .data[[m1]], y = .data[[m2]])) +
+      geom_point() + 
+      geom_text_repel(data = df %>% filter(gene_name %in% known_genes), 
+                      aes(label = gene_name), color = "red", size = 3.25, 
+                      nudge_x = 50, nudge_y = 10, box.padding = 0.5) +
+      labs(x = paste(m1, "rank"), y = paste(m2, "rank"),
+           title = paste(m2, "vs.", m1, ": Cor = ", round(cor_val, 2))) +
+      #scale_color_manual(values = c("darkorange", "firebrick3", "deepskyblue2")) +
+      theme_bw() + coord_fixed() + 
+      xlim(c(0, 120)) + ylim(c(0, 120))
+}
+
+# generate and display all pairwise comparison plots
+plots <- lapply(seq_len(nrow(df_pairs)), \(i) {
+    plot_pairwise_comparison(df_pairs[i, 2], df_pairs[i, 1],rank_long)
+})
+
+wrap_plots(plots, ncol = 3)
 ```
 
 :::
+
 
 ## Appendix
  
@@ -272,9 +279,11 @@ While all four methods - HVGs, DEGs, SVGs identified through `nnSVG` and `DESpac
 - @DasAdhikari2024-SVG
 - @Yan2024-SVG
 
+
 ### Benchmarks {.unnumbered}
 
 - @Li2023-SVG compares 14 methods using 60 simulated datasets, generated using four different strategies, 12 experimental ST datasets, and 3 spatial ATAC-seq datasets.
 - @Chen2024-SVG compares 8 methods based on 22 experimental datasets (8 technologies, 6 tissue types) and 9 datasets simulated using `r BiocStyle::Biocpkg("scDesign3")` [@Song2024-scDesign3].
+
 
 ### References {.unnumbered}

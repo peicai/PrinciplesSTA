@@ -90,6 +90,28 @@ pre.sourceCode.r, code.sourceCode.r {
 
 }
 
+pre.sourceCode.python, code.sourceCode.python {
+  
+  $border: 1.5px;
+  color: #070707;
+  background: #f7f7f7;
+  background-clip: padding-box; /* !importanté */
+  border: solid $border transparent; /* !importanté */
+  border-radius: 8px;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: -1;
+    margin: -$border; /* !importanté */
+    border-radius: inherit; /* !importanté */
+    background: #0087af;
+/*    background: linear-gradient(to right, #18a603, #0484a9, #0087af); */
+  }
+
+}
+
 pre.code_output {
   background: #f7f7f7;
 }

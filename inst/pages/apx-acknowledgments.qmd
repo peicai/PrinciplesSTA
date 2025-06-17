@@ -7,9 +7,10 @@ The following individuals have contributed to developing the contents of this bo
 - Peiying Cai, University of Zurich, Zurich, Switzerland
 - [Leonardo Collado-Torres](https://lcolladotor.github.io/), Lieber Institute for Brain Development, Baltimore, MD, United States
 - [Helena L. Crowell](https://helenalc.github.io/), National Center for Genomic Analysis, Barcelona, Spain
-- [Estella Yixing Dong](https://estellad.github.io/online-cv/), CHUV and University of Lausanne, Lausanne, Switzerland
+- [Estella Yixing Dong](https://estellad.github.io/online-cv/), Lausanne University Hospital (CHUV) and University of Lausanne, Lausanne, Switzerland
 - [Martin Emons](https://github.com/mjemons), University of Zurich, Zurich, Switzerland
 - [Shila Ghazanfar](https://shazanfar.github.io/), University of Sydney, Sydney, Australia
+- [Raphael Gottardo](https://www.chuv.ch/en/bdsc/), Lausanne University Hospital (CHUV) and University of Lausanne, Lausanne, Switzerland
 - [Samuel Gunz](https://github.com/sgunz), University of Zurich, Zurich, Switzerland
 - [Boyi Guo](https://boyi-guo.com/), Johns Hopkins University, Baltimore, MD, United States
 - [Stephanie C. Hicks](https://www.stephaniehicks.com/), Johns Hopkins University, Baltimore, MD, United States
@@ -20,7 +21,7 @@ The following individuals have contributed to developing the contents of this bo
 - Pratibha Panwar, University of Sydney, Sydney, Australia
 - [Davide Risso](https://drisso.github.io/), University of Padova, Italy
 - [Mark D. Robinson](https://robinsonlabuzh.github.io/), University of Zurich, Zurich, Switzerland
-- Jieran Sun, CHUV and University of Lausanne, Lausanne, Switzerland
+- Jieran Sun, Lausanne University Hospital (CHUV) and University of Lausanne, Lausanne, Switzerland
 - [Michael Totty](https://github.com/MicTott), Johns Hopkins University, Baltimore, MD, United States
 - [Lukas M. Weber](https://lmweber.org/), Boston University, Boston, MA, United States
 

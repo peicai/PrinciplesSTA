@@ -19,13 +19,13 @@ Lattice based spatial methods rely on the concept of neighborhood. The neighborh
 Different methods for the construction of the weight matrix exist, such as
 
 * contiguity-based neighbors (neighbors in direct contact),
-* graph-based neighbours (e.g., k-nearest neighbours),
-* distance-based neighbours,
-* higher order neighbours.
+* graph-based neighbors (e.g., k-nearest neighbors),
+* distance-based neighbors,
+* higher order neighbors.
 
 A detailed overview can be found in the [documentation](https://r-spatial.github.io/spdep/articles/nb.html) of the `r BiocStyle::CRANpkg("spdep")` package.
 
-As different weight matrices  influence downstream results, analysts should justify their choice of the weight matrix. A more detailed overview can be found in @Pebesma2023.
+As different weight matrices influence downstream results, analysts should justify their choice of the weight matrix. A more detailed overview can be found in @Pebesma2023.
 
 :::
 
@@ -33,24 +33,24 @@ As different weight matrices  influence downstream results, analysts should just
 colGraph(sfe, "knn6") <-
   findSpatialNeighbors(
     sfe,
-    type = "cellSeg",
+    type = "centroids",
     method = "knearneigh",
     k = 6
   )
 
 plotColGraph(sfe,
   colGraphName = "knn6",
-  colGeometryName = "cellSeg"
+  colGeometryName = "centroids"
 ) + theme_void()
 ```
 
 ### Spatial autocorrelation
 
-Spatial autocorrelation measures similarity between spatial units (e.g., cells) while recognize that the units are not independent due to their spatial context. Spatial autocorrelation metrics can be global (summarizing the entire study area) of view or local (provide statistic for each unit). In addition, there exist methods for univariate and multivariate comparisons of continuous and categorical data @Pebesma2023.
+Spatial autocorrelation measures similarity between spatial units (e.g., cells) while recognize that the units are not independent due to their spatial context. Spatial autocorrelation metrics can be global (summarizing the entire study area) of view or local (provide statistic for each unit). In addition, there exist methods for univariate and multivariate comparisons of continuous and categorical data [@Pebesma2023].
 
 #### Univariate measures - Moran's $I$
 
-Moran’s $I$ can be interpreted as the Pearson correlation between the value at a certain location and the average values of its neigbours. The global value is a weighted average of the respective local values @Moran1950.
+Moran's $I$ can be interpreted as the Pearson correlation between the value at a certain location and the average values of its neighbors. The global value is a weighted average of the respective local values [@Moran1950].
 
 ```{r calculate global moran, warning=FALSE}
 # get all gene probes
@@ -60,7 +60,7 @@ sfe <- runUnivariate(sfe,
   type = "moran",
   features = geneProbes,
   colGraphName = "knn6",
-  BPPARAM = MulticoreParam(2)
+  BPPARAM = MulticoreParam(4)
 )
 ```
 
@@ -71,14 +71,14 @@ topGenes <- rownames(sfe)[order(rowData(sfe)$moran_sample01, decreasing = TRUE)[
 plotSpatialFeature(sfe, topGenes, ncol = 3)
 ```
 
-We can further visualize this using when calculating and plotting local Moran's $I$ values @Anselin1995. The interpretation is analogue to the global counterpart. The higher the value, the more similar the expression among a cell's neighbors. Negative values indicate local dissimilarity in expression.
+We can further visualize this using when calculating and plotting local Moran's $I$ values [@Anselin1995]. The interpretation is analogue to the global counterpart. The higher the value, the more similar the expression among a cell's neighbors. Negative values indicate local dissimilarity in expression.
  
 ```{r local moran, fig.width=25, fig.height=10}
 sfe <- runUnivariate(sfe,
   type = "localmoran",
   features = topGenes,
   colGraphName = "knn6",
-  BPPARAM = MulticoreParam(2)
+  BPPARAM = MulticoreParam(4)
 )
 
 plotLocalResult(sfe,
@@ -110,8 +110,7 @@ plotLocalResult(sfe,
 
 Multivariate measures – Lee's L
 
-Lee's $L$ combines the Pearson correlation coefficient and Moran's $I$ @Lee2001 This unified metric allows to evaluate how two continuous variables are related while accounting for their spatial dependencies. We will calculate the global metric on the 20 most highly (non-spatial)
-variable features.
+Lee's $L$ combines the Pearson correlation coefficient and Moran's $I$ [@Lee2001]. This unified metric allows to evaluate how two continuous variables are related while accounting for their spatial dependencies. We will calculate the global metric on the 20 most highly (non-spatial) variable features.
 
 ```{r lees l, warning=FALSE}
 hvgs <- getTopHVGs(sfe, n = 20)
@@ -155,10 +154,41 @@ plotLocalResult(
 
 ### Join count statistics
 
-> TODO with cluster labels
+Join count statistics can be used to quantify the arrangement of categorical marks on lattices. The join count statistic calculates how often a categorical mark appears next to itself or to another category within the pre-defined neighborhood. This values can then be compared against a theoretical or a permutation-based value test of the null hypothesis of random spatial allocation of the marks [@getis2009spatial].
 
-```{r}
-resJc <- joincount.multi(as.factor(sfe$Cluster), colGraph(sfe, "knn6"))
-resJc <- resJc[order(resJc[, "z-value"], decreasing=TRUE), ]
-resJc[head(grep("Invasive", rownames(resJc)), 10), ]
+Here, we will use the this to quantify the tendency of clusters (non-spatial) to co-localize in their relative neighborhood. Note that the output contains z-scores and no p-values such that a user-defined threshold can be applied.
+
+```{r clustering, fig.width=20, fig.height=10}
+### code adapted from https://robinsonlabuzh.github.io/pasta/04-imaging-multivar-latSOD.html ###
+
+library(BiocNeighbors)
+library(BiocSingular)
+
+# normalize expression
+sfe <- logNormCounts(sfe)
+
+set.seed(123)
+# Run PCA on the sample
+sfe <- scater::runPCA(sfe, exprs_values = "logcounts", ncomponents = 50)
+# Cluster based on first 20 PC's and using leiden
+colData(sfe)$cluster <- bluster::clusterRows(reducedDim(sfe, "PCA")[,1:10],
+                                    BLUSPARAM = bluster::KNNGraphParam(
+                                      k = 20,
+                                      cluster.fun = "leiden",
+                                      cluster.args = list(
+                                          resolution = 0.3,
+                                          objective_function = "modularity")))
+
+plotSpatialFeature(sfe,
+  "cluster",
+  colGeometryName = "centroids"
+)
 ```
+
+```{r join counts}
+resJc <- joincount.multi(as.factor(sfe$cluster), colGraph(sfe, "knn6"))
+resJc <- resJc[order(resJc[, "z-value"], decreasing=TRUE), ]
+head(resJc, n = 20)
+```
+
+We note that the non-spatial cluster labels are of course most likely found next to each other. Apart from this obvious result, the first top non-self interaction is $5:3$. Looking at the plot of the spatial distributions of the clusters these are two clusters in the ductal carcinoma regions of the tissue, the inner (blue) and the outer (green) lining. 

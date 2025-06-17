@@ -7,7 +7,7 @@ Point pattern analysis is a subfield of spatial statistics that focuses on the r
 
 The central `R` package to perform point pattern analysis is called `r BiocStyle::CRANpkg('spatstat')` [@Baddeley2005-spatstat]. The package `spatialFDA` creates an interface between `SpatialExperiment` objects and the `r BiocStyle::CRANpkg('spatstat')` library for easy integration into analysis workflows.
 
-Part of this vignette is based on the [pasta overview vignette ](https://robinsonlabuzh.github.io/pasta/00-overview-ppSOD.html) and [another vignette](https://robinsonlabuzh.github.io/pasta/01-imaging-univar-ppSOD.html) @Emons2024-pasta
+Part of this vignette is based on the [pasta overview vignette ](https://robinsonlabuzh.github.io/pasta/00-overview-ppSOD.html) and [another vignette](https://robinsonlabuzh.github.io/pasta/01-imaging-univar-ppSOD.html) [@Emons2024-pasta]
 
 ::: {.callout-note collapse="true" title="`ppp` object"}
 
@@ -87,7 +87,7 @@ It is characterized by two key properties:
 
 ##### Ripley's $K$
 
-Ripley's $K$ is a well established function to assess correlation in a point pattern. It can be calculated within a mark or across marks. In essence, Ripley's $K$ quantifies the average number of points that fall in a $r$-neighbourhood of a chosen mark [@Ripley1976; @Baddeley2015 p. 132 ff.].
+Ripley's $K$ is a well established function to assess correlation in a point pattern. It can be calculated within a mark or across marks. In essence, Ripley's $K$ quantifies the average number of points that fall in a $r$-neighborhood of a chosen mark [@Ripley1976; @Baddeley2015 p. 132 ff.].
 
 ```{r ripley, message = FALSE, warning = FALSE}
 #| fig-width: 15
@@ -100,7 +100,7 @@ resCross <- calcCrossMetricPerFov(
   fun = 'Kcross',
   marks = 'Cluster',
   rSeq = seq(0, 500, length.out = 100),
-  by = c("sample_id", "Sample")
+  by = c("sample_id")
 )
 
 plotCrossMetricPerFov(
@@ -112,7 +112,7 @@ plotCrossMetricPerFov(
 )
 ```
 
-This plot shows Ripley's $K$ function corrected for inhomogeneities of the chosen marks. The diagonal is Ripley's $K$ function among the three cell types themselves and the off diagonal plots show the cross type combinations. We note that all cell types, ductal carcinoma in situ 1 (DCIS 1),  ductal carcinoma in situ 2 (DCIS 2) and invasive tumor cells show a clear interaction among themselves, even when correcting for the inhomogeneity. DCIS 1 and invasive tumor cells show spacing, meaning there are less invasive tumor cells found in DCIS 1 than expect under CSR. However, DCIS 2 and invasive tumor cells show a distribution that is completely spatially random in a $500 µm$ $r$-neighbourhood.  
+This plot shows Ripley's $K$ function not corrected for inhomogeneities of the chosen marks. The diagonal is Ripley's $K$ function among the three cell types themselves and the off diagonal plots show the cross type combinations. We note that all cell types, ductal carcinoma in situ 1 (DCIS 1),  ductal carcinoma in situ 2 (DCIS 2) and invasive tumor cells show a clear interaction among themselves. DCIS 1 and invasive tumor cells show spacing, meaning there are less invasive tumor cells found in DCIS 1 than expect under CSR. However, DCIS 2 and invasive tumor cells show a distribution that is completely spatially random in a $500 µm$ $r$-neighborhood.  
 
 #### Spacing
 
@@ -122,7 +122,7 @@ A complementary approach to correlation analysis is spacing. There are three mai
 - nearest-neighbor distances: distance to the nearest point of the query point
 - empty-space distances: distance from a reference location to the nearest point
 
-##### Nearest-neighbour distance function $G$
+##### Nearest-neighbor distance function $G$
 
 The nearest neighbor function $G$ quantifies the average nearest-neighbor distance over a radius range $r$ [@Baddeley2015 p. 262].
 
@@ -137,7 +137,7 @@ resCross <- calcCrossMetricPerFov(
   fun = 'Gcross',
   marks = 'Cluster',
   rSeq = seq(0, 100, length.out = 100),
-  by = c("sample_id", "Sample")
+  by = c("sample_id")
 )
 
 plotCrossMetricPerFov(
@@ -179,7 +179,7 @@ resLocal <- localK(ppSub, verbose=FALSE)
 df <- resLocal |>
     as.data.frame() |>
     pivot_longer(
-        iso0001:iso1408, 
+        iso0001:iso1327, 
         names_to="curve") 
 
 sel <- df %>% 
@@ -191,11 +191,11 @@ df <- df %>% left_join(sel)
 thm <- list(
     theme_light(),
     theme(legend.position="none"),
-    scale_colour_viridis_c())
+    scale_color_viridis_c())
 
 p <- ggplot(df, aes(r, value, group=curve, col=sel)) +
     geom_line() +
-    geom_line(aes(y=theo), linetype=2, col="darkgrey") +
+    geom_line(aes(y=theo), linetype=2, col="darkgray") +
     geom_vline(xintercept=700) +
     thm
 
@@ -211,6 +211,6 @@ q <- ggplot(df, aes(x, y, col = sel)) +
 p | q
 ```
 
-The LISA Ripley's $K$ are colored by their value at $r = 700$. We note that the LISA Ripley's $K$ gives two populations of curves. Those curves that increase at radii $r<500 µm$ above the CSR line indicated in grey and the other curves that remain either below the grey CSR line or increase after $r>500µm$. 
+The LISA Ripley's $K$ are colored by their value at $r = 700$. We note that the LISA Ripley's $K$ gives two populations of curves. Those curves that increase at radii $r<500 µm$ above the CSR line indicated in gray and the other curves that remain either below the gray CSR line or increase after $r>500µm$. 
 
-If the values at $r=700$ of the curves are projected back into the physical space, we note that the curves above the grey CSR line are the highly clustered cells in the bottom left. The other curves are the more spaced cells.
+If the values at $r=700$ of the curves are projected back into the physical space, we note that the curves above the gray CSR line are the highly clustered cells in the bottom left. The other curves are the more spaced cells.

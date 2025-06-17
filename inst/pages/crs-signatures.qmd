@@ -1,4 +1,4 @@
-# Gene/feature-set signatures
+# Feature-set signatures {#sec-crs-signatures}
 
 ## Preamble
 
@@ -35,11 +35,11 @@ library(pheatmap)
 library(patchwork)
 library(BiocParallel)
 library(SpatialExperiment)
-bp <- MulticoreParam(th <- 10)
+bp <- MulticoreParam(th <- 4)
 ```
 
 ```{r load-data}
-(spe <- readRDS("img-spe_cl.rds"))
+spe <- readRDS("img-spe_cl.rds")
 ```
 
 ## Set scoring
@@ -125,7 +125,7 @@ lapply(c("hypoxia", "apoptosis", "myogenesis"), \(.) {
     xy <- spatialCoordsNames(spe)
     xy <- match(xy, names(colData(spe)), nomatch=0)
     if (any(xy != 0)) colData(spe) <- colData(spe)[-xy]
-    plt <- plotSpots(spe, annotate=.) 
+    plt <- plotCoords(spe, annotate=.) 
     plt$layers[[1]]$aes_params$stroke <- 0
     plt$layers[[1]]$aes_params$size <- 0.2
     plt
@@ -158,6 +158,7 @@ between experimental conditions. Ideally, this'd be done at the subpopulation
 level, since compositional differences are deemed to drive differences (e.g.,
 sections richer in CD8+ T cells are, by chance, more likely to score higher
 for cytotoxicity than sections where CD8+ T cells are absent, or similar).
+
 
 ## Appendix
 

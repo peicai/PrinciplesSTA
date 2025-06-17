@@ -28,13 +28,13 @@ library(DropletUtils)
 library(SpatialExperiment)
 # specify whether/how to 
 # perform parallelization
-bp <- MulticoreParam(th <- 10)
+bp <- MulticoreParam(th <- 4)
 # set seed for random number generation
 # in order to make results reproducible
 set.seed(194849)
 ```
 
-## Data import
+## Data import {#sec-seq-workflow-visium-crc-load-data}
 
 ```{r load-spe, message=FALSE, results="hide"}
 # retrieve dataset from OSF repo
@@ -76,8 +76,8 @@ spe <- addPerCellQCMetrics(spe, subsets=sub)
 
 ```{r plt-xy-qc, echo=FALSE, message=FALSE, fig.width=6, fig.height=2.5}
 spe$log_sum <- log1p(spe$sum)
-plotSpots(spe, annotate="log_sum") + ggtitle("log-library size") +
-plotSpots(spe, annotate="subsets_mt_percent") + ggtitle("% mitochondrial") +
+plotCoords(spe, annotate="log_sum") + ggtitle("log-library size") +
+plotCoords(spe, annotate="subsets_mt_percent") + ggtitle("% mitochondrial") +
 plot_layout(nrow=1) & theme(
     legend.key.width=unit(0.5, "lines"),
     legend.key.height=unit(1, "lines")) &
@@ -102,7 +102,7 @@ Let's see which spots would be excluded according to the above criteria:
 ```{r plt-ol-xy, fig.width=12, fig.height=3}
 #| code-fold: true
 lapply(names(ol), \(.) 
-    plotSpots(spe, annotate=.) + ggtitle(.)) |>
+    plotCoords(spe, annotate=.) + ggtitle(.)) |>
     wrap_plots(nrow=1, guides="collect") &
     guides(col=guide_legend(override.aes=list(size=3))) &
     scale_color_manual("discard", values=c("lavender", "purple")) &
@@ -176,11 +176,11 @@ cs <- split(seq_len(ncol(.sce)), .sce$Level1)
 cs <- lapply(cs, \(.) sample(., min(length(.), 4e3)))
 .sce <- .sce[, unlist(cs)]
 # run 'RCTD' deconvolution
-obj <- createRctd(spe, .sce, cell_type_col="Level1", max_cores=10)
-(res <- runRctd(obj, rctd_mode="full"))
+rctd_data <- createRctd(spe, .sce, cell_type_col="Level1")
+(res <- runRctd(rctd_data, max_cores=th, rctd_mode="full"))
 ```
 
-Weights inferred by `RCDT` should be normalized such that proportions of cell types sum to 1 in each spot:
+Weights inferred by `RCTD` should be normalized such that proportions of cell types sum to 1 in each spot:
 
 ```{r dec-res}
 # scale weights such that they sum to 1
@@ -218,7 +218,7 @@ Let's visualize deconvolution weights in space, i.e., coloring by the proportion
 ```{r plt-dec-xy, message=FALSE, fig.width=8.5, fig.height=7}
 #| code-fold: true
 lapply(names(ws), \(.) 
-    plotSpots(spe, annotate=.)) |>
+    plotCoords(spe, annotate=.)) |>
     wrap_plots(nrow=3) & theme(
     legend.key.width=unit(0.5, "lines"),
     legend.key.height=unit(1, "lines")) &
@@ -228,7 +228,7 @@ lapply(names(ws), \(.)
 ```{r plt-clu-xy, message=FALSE, fig.width=10, fig.height=2.5}
 #| code-fold: true
 lapply(c("Leiden", "Domain", "RCTD"), 
-    \(.) plotSpots(spe, annotate=.)) |>
+    \(.) plotCoords(spe, annotate=.)) |>
     wrap_plots(nrow=1) &
     theme(legend.key.size=unit(0, "lines")) &
     scale_color_manual(values=unname(pals::trubetskoy()))
@@ -265,7 +265,7 @@ Let's inspect the key drivers of (expression) variability in terms of PCs. Consi
 pcs <- reducedDim(spe, "PCA")
 colData(spe)[colnames(pcs)] <- pcs
 lapply(colnames(pcs)[seq_len(6)], 
-    \(.) plotSpots(spe, annotate=.) +
+    \(.) plotCoords(spe, annotate=.) +
     scale_color_gradientn(., colors=pals::jet())) |>
     wrap_plots(nrow=2) & theme(
         plot.title=element_blank(),
@@ -333,7 +333,7 @@ To summarize, MYC signalling is absent in stromal regions; the fibroblast ring s
 #| code-fold: true
 lapply(top, \(.) {
     spe[[.]] <- scale(spe[[.]]) # scaling
-    plotSpots(spe, annotate=.) # plotting
+    plotCoords(spe, annotate=.) # plotting
 }) |> 
     # arrange & prettify
     wrap_plots(nrow=2, guides="collect") & 
@@ -348,7 +348,7 @@ lapply(top, \(.) {
 
 To ease interpretability, we can stratify `AUCell` scores by spot labels; these may stem from an unsupervised or deconvolution-based approach:
 
-```{r plt-auc-hm, fig.width=3, fig.height=4}
+```{r plt-auc-hm, fig.width=4, fig.height=5}
 #| layout-ncol: 2
 #| code-fold: true
 for (. in c("Leiden", "RCTD")) {
@@ -370,7 +370,7 @@ For the latter, we may instead correlate set scores with proportion estimates (r
 cm <- cor(as.matrix(ws), t(assay(auc[top, ])))
 ```
 
-```{r plt-cor, fig.width=3, fig.height=4}
+```{r plt-cor, fig.width=5, fig.height=6}
 #| code-fold: true
 #| fig-align: center
 pheatmap(cm, 
@@ -379,6 +379,7 @@ pheatmap(cm,
     cellwidth=10, cellheight=10, 
     treeheight_row=5, treeheight_col=5)
 ```
+
 
 ## Appendix
 

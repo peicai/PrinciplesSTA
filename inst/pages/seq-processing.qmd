@@ -6,141 +6,184 @@
 
 This chapter demonstrates methods for several data processing steps -- normalization, feature selection, and dimensionality reduction -- that are required before downstream analysis methods can be applied.
 
-We use methods from the `r BiocStyle::Biocpkg("scater")` [@McCarthy2017] and `r BiocStyle::Biocpkg("scran")` [@Lun2016] packages, which were originally developed for scRNA-seq data, with the (simplified) assumption that these methods can be applied to spot-based ST data by treating spots as equivalent to cells. In addition, we demonstrate alternative spatially-aware methods.
+We use methods from the `r BiocStyle::Biocpkg("scater")` [@McCarthy2017] and `r BiocStyle::Biocpkg("scran")` [@Lun2016] packages, which were originally developed for scRNA-seq data, with the (simplified) assumption that these methods can be applied to spot-based ST data by treating spots as equivalent to cells. In addition, we discuss alternative spatially-aware methods, and provide links to later parts of the book where these methods are described in more detail.
+
+Following the processing steps, this chapter also includes short demonstrations for subsequent steps, including clustering and identification of marker genes. For more details on these steps, see the later analysis chapters or workflow chapters.
+
 
 ### Dependencies
 
 ```{r load-libs, message=FALSE, warning=FALSE}
+library(SpatialExperiment)
+library(STexampleData)
+library(scater)
+library(scran)
 library(BayesSpace)
 library(ggspavis)
 library(patchwork)
 library(pheatmap)
-library(scater)
-library(scran)
-library(SpatialExperiment)
-library(STexampleData)
 ```
 
-Here, we import a 10x Genomics Visium dataset that will be used in several of the following chapters. This dataset has previously been preprocessed using data preprocessing procedures with tools outside R and saved in `SpatialExperiment` format, and is available for download from the `r BiocStyle::Biocpkg("STexampleData")`  package.
+```{r}
+# set seed for reproducibility
+set.seed(123)
+```
 
-This dataset consists of one sample (Visium capture area) from one donor, consisting of postmortem human brain tissue from the dorsolateral prefrontal cortex (DLPFC) brain region, measured with the 10x Genomics Visium platform. The dataset is described in @Maynard2021.
+
+### Load data
+
+Here, we load a 10x Genomics Visium dataset that will also be used in several of the following chapters. This dataset has previously been preprocessed using tools outside R and saved in `SpatialExperiment` format, and is available for download from the `r BiocStyle::Biocpkg("STexampleData")` package.
+
+This dataset consists of one sample (Visium capture area) of postmortem human brain tissue from the dorsolateral prefrontal cortex (DLPFC) brain region, measured with the 10x Genomics Visium platform. The dataset is described in @Maynard2021.
 
 ```{r load-data, message=FALSE}
+# load data from STexampleData package
 spe <- Visium_humanDLPFC()
-imgData(spe) <- NULL # tmp fix
-spe
+
+class(spe)
+dim(spe)
 ```
 
-## Normalization {#sec-seq-normalization}
 
-### Non-spatial
+## Normalization {#sec-seq-processing-norm}
 
-The simplest approach is to calculate log-transformed normalized counts ("logcounts") using library size factors, treating each spot as equivalent to a single cell. This approach is simple and fast, and generally provides a good baseline. However, in some datasets, the (over)-simplified assumption of each spot being equivalent to a single cell will not be appropriate. This example uses the `r BiocStyle::Biocpkg("scater")` [@McCarthy2017] and `r BiocStyle::Biocpkg("scran")` [@Lun2016] packages.
+### Library size normalization
 
-Note that some alternative non-spatial methods from single-cell workflows (e.g. normalization by deconvolution) are less appropriate for spot-based spatial transcriptomics data, since spots can contain multiple cells from multiple cell types, and datasets can contain multiple samples (e.g. multiple tissue sections, resulting in sample-specific clustering).
-[Library size-based normalization was originally developed for scRNA-seq data, and makes the assumption that spots are equivalent to single cells; this has been shown to be problematic because *"library size confounds [spatial] biology"* [@Bhuva2024].]{.aside}
+A simple and fast approach for normalization is "library size normalization", which consists of calculating log-transformed normalized counts ("logcounts") using library size factors, treating each spot as equivalent to a single cell. This method is simple, fast, and generally provides a good baseline. It can be calculated using the `r BiocStyle::Biocpkg("scater")` [@McCarthy2017] and `r BiocStyle::Biocpkg("scran")` [@Lun2016] packages.
 
-```{r log, message=FALSE, fig.height=3.5}
+However, library size normalization does not make use of any spatial information. In some datasets, the simplified assumption that each spot can be treated as equivalent to a single cell is not appropriate, and can create problems during analysis. (*"Library size confounds biology in spatial transcriptomics data"* [@Bhuva2024].)
+
+Some alternative non-spatial methods from scRNA-seq workflows (e.g. normalization by deconvolution) are also less appropriate for spot-based ST data, since spots can contain multiple cells from one or more cell types, and datasets can contain multiple samples (e.g. multiple tissue sections), which may result in sample-specific clustering.
+
+```{r logcounts, message=FALSE, fig.height=3.5}
 # calculate library size factors
 spe <- computeLibraryFactors(spe)
+
 summary(sizeFactors(spe))
-hist(sizeFactors(spe), breaks=20)
-# calculate 'logcounts'; these will
-# be added as an additional 'assay'
+hist(sizeFactors(spe), breaks = 20, main = "Histogram of size factors")
+
+# calculate logcounts and store in new assay
 spe <- logNormCounts(spe)
+
 assayNames(spe)
 ```
 
-### Spatially-aware
 
-`r BiocStyle::Biocpkg("SpaNorm")` [@Salim2024-SpaNorm] was developed for spatial transcriptomics data specifically, and uses a gene-wise model (e.g., negative binomial) in which variation is decomposed into a library size-dependent (technical) and -independent (biological) component.
+### Spatially-aware normalization
 
-## Feature selection {#sec-seq-feature-selection}
+`r BiocStyle::Biocpkg("SpaNorm")` [@Salim2024-SpaNorm] was developed specifically for ST data, using a gene-wise model (e.g. negative binomial) in which variation is decomposed into a library size-dependent (technical) and -independent (biological) component.
 
-### Non-spatial: Highly variable genes (HVGs)
 
-Here, we re-use feature selection methods from scRNA-seq workflows to identify a set of 'highly variable' genes (HVGs). These will be used as the input for subsequent steps, such as dimensionality reduction and clustering. In this example, we use the `r BiocStyle::Biocpkg("scran")` package [@Lun2016] to identify HVGs. As above, this makes the simplified assumption that spots can be treated as equivalent to single cells.
+## Feature selection {#sec-seq-processing-feature}
 
-To identify HVGs, we first remove mitochondrial genes, since these are very highly expressed in this dataset and are not of main biological interest.
-[Note that HVGs are defined based only on molecular features (i.e., gene expression), and do not take any spatial information into account.
-If the biologically meaningful spatial information in this dataset mainly reflects spatial distributions of cell types (defined by gene expression), then relying on HVGs for downstream analyses may be sufficient.
-However, many datasets contain further spatial structure that is not captured in this way, which may be investigated using spatially-aware methods such as identifying spatially variable genes (SVGs).]{.aside}
+### Highly variable genes (HVGs)
+
+Feature selection is used as a preprocessing step to identify a subset of biologically informative features (e.g. genes), in order to reduce noise (due to both technical and biological factors) and improve computational performance.
+
+Identifying a set of top "highly variable genes" (HVGs) is a standard step for feature selection in many scRNA-seq workflows, which can also be used as a simple and fast baseline approach in spot-based ST data. As above, this makes the simplified assumption that spots can be treated as equivalent to cells.
+
+The set of top HVGs can then be used as the input for subsequent steps, such as dimensionality reduction and clustering. In this example, we use the `r BiocStyle::Biocpkg("scran")` package [@Lun2016] to identify HVGs.
+
+Note that HVGs are defined based only on molecular features (i.e. gene expression), and do not take any spatial information into account. If the spatial patterns in gene expression in a dataset mainly reflect spatial distributions of cell types (defined by gene expression), then relying on HVGs for downstream analyses may be sufficient. However, if there is further biologically meaningful spatial structure that is not captured in this way, spatially-aware methods may be needed instead.
+
+To identify the set of top HVGs, we first remove mitochondrial genes, since these tend to be very highly expressed and are not of main biological interest.
 
 ```{r mt}
 # identify mitochondrial genes
 nm <- rowData(spe)$gene_name
-mt <- grepl("^MT-", nm, ignore.case=TRUE)
+mt <- grepl("^MT-", nm, ignore.case = TRUE)
 table(mt)
+
 # remove
 spe <- spe[!mt, ]
-nrow(spe)
 ```
 
-Next, apply methods from `r BiocStyle::Biocpkg("scran")`.
-This gives a list of HVGs, which can be used as the input for subsequent steps.
-The parameter `prop` defines the proportion of HVGs to select; for example, `prop=0.1` returns the top 10%.
-[Alternatively, argument `n` can be used to selected a fixed number of genes, say 2,000.]{.aside}
+Next, apply methods from `r BiocStyle::Biocpkg("scran")`. This gives a list of top HVGs, which can be used as the input for subsequent steps. The parameter `prop` defines the proportion of HVGs to select -- for example, `prop = 0.1` returns the top 10%. (Alternatively, argument `n` can be used to selected a fixed number of top HVGs, say 1000 or 2000.)
 
-```{r hvg, message=FALSE, fig.width=6, fig.height=5}
-# fit mean-variance relationship, decomposing 
-# variance into technical and biological components
+```{r hvgs, message=FALSE, fig.width=6, fig.height=5}
+# fit mean-variance relationship, decomposing variance into 
+# technical and biological components
 dec <- modelGeneVar(spe)
-# select top HVGs (i.e. variance above trend)
-sel <- getTopHVGs(dec, prop=0.1)
+
+# select top HVGs
+sel <- getTopHVGs(dec, prop = 0.1)
+
+# number of HVGs selected
 length(sel)
 ```
 
-```{r plt-hvg, fig.width=5, fig.height=4}
+```{r plt-hvgs, fig.width=5, fig.height=4}
 #| code-fold: true
 # visualize mean-variance relationship
-par(mar=c(4, 4, 0, 0))
+par(mar = c(4, 4, 0, 0))
 fit <- metadata(dec)
-plot(fit$mean, fit$var, cex=0.5, xlab="mean expression", ylab="variance")
-points(dec[sel, "mean"], dec[sel, "total"], cex=0.5, col="dodgerblue")
-curve(fit$trend(x), add=TRUE, lwd=2, col="tomato")
+plot(fit$mean, fit$var, cex = 0.5, 
+     xlab = "mean expression", ylab = "variance")
+points(dec[sel, "mean"], dec[sel, "total"], cex = 0.5, col = "dodgerblue")
+curve(fit$trend(x), add = TRUE, lwd = 2, col = "tomato")
 ```
 
-### Spatially-aware: Spatially variable genes (SVGs)
 
-Alternatively, spatially-aware methods can instead be used to identify 'spatially variable genes' (SVGs), either instead of or complementary to HVGs.
+### Spatially variable genes (SVGs)
 
-A number of methods have been developed to identify SVGs. These methods take the spatial information in spatial transcriptomics measurements into account, which can provide a more biologically informative ranking of genes.
+Alternatively, spatially-aware methods can be used to identify a set of "spatially variable genes" (SVGs). These methods take the spatial coordinates of the measurements into account, which can generate a more biologically informative ranking of genes associated with biological structure within the tissue area. The set of SVGs may then be used either instead of or complementary to HVGs in subsequent steps.
 
-For more details and examples, see @sec-crs-spatially-variable.
+A number of methods have been developed to identify SVGs. For more details and examples, see @sec-crs-spatially-variable.
 
-## Dimension reduction (DR) {#sec-seq-dimension-reduction}
 
-A standard next step is to perform PCA to the set of top HVGs; see @sec-crs-dimension-reduction. In addition, we'll perform non-linear DR technique, UMAP, on a subset of PCs (default 50).
-[Note that, the algorithm underlying UMAP is stochastic, so that UMAP 'shapes' will change from one run to the next. Thus, a random seed should be set in order to make the visualization reproducible.]{.aside}
+## Dimensionality reduction {#sec-seq-processing-dimred}
+
+A standard next step is to perform dimensionality reduction using principal component analysis (PCA), applied to the set of top HVGs (or SVGs). The set of top principal components (PCs) can then be used as the input for subsequent steps. Note that we have set a random seed at the start of the chapter for reproducibility. See @sec-crs-dimension-reduction for more details.
 
 ```{r pca}
-spe <- runPCA(spe, subset_row=sel)
-spe <- runUMAP(spe, dimred="PCA")
+# using scater package
+spe <- runPCA(spe, subset_row = sel)
 ```
 
-## Clustering {#sec-seq-clustering}
+In addition, we can perform nonlinear dimensionality reduction using the UMAP algorithm, applied to the set of top PCs (default 50). The top two UMAP dimensions can then be used for visualization purposes by plotting on the x and y axes. The UMAP algorithm is stochastic, so the visual layout of the UMAP plot will change from one run to the next. Setting a random seed ensures that the visualization is reproducible.
 
-Next we'll run a spatially aware clustering, `r BiocStyle::Biocpkg("BayesSpace")` [@Zhao2021-BayesSpace], developed specifically for seq-based ST data; see also @sec-crs-clustering.
+Note that UMAP plots should be interpreted with caution [@Chari2023-specious]. Specifically, the UMAP algorithm can introduce misleading structure in a 2D plot, and the relative distances between points in the 2D plot are not meaningful. For this reason, we recommend using UMAP only for generating visualizations, not clustering -- any cluster labels shown on a UMAP plot should be generated using a separate clustering algorithm. Similar arguments also apply to the t-SNE algorithm, which may be used as an alternative to UMAP.
+
+```{r umap, eval=FALSE}
+# using scater package
+# not run
+spe <- runUMAP(spe, dimred = "PCA")
+```
+
+
+## Clustering {#sec-seq-processing-clustering}
+
+Next, we demonstrate some short examples of downstream analysis steps, following the processing steps above.
+
+Here, we run a spatially-aware clustering algorithm, `r BiocStyle::Biocpkg("BayesSpace")` [@Zhao2021-BayesSpace], to identify spatial domains. BayesSpace was developed specifically for sequencing-based ST data, and takes the spatial coordinates of the measurements into account.
+
+For more details on clustering, see @sec-crs-clustering.
 
 ```{r clu, message=FALSE}
-.spe <- spatialPreprocess(spe, skip.PCA=TRUE)
-.spe <- spatialCluster(.spe, nrep=1e3, burn.in=100, q=10, d=20)
+# run BayesSpace clustering
+.spe <- spatialPreprocess(spe, skip.PCA = TRUE)
+.spe <- spatialCluster(.spe, nrep = 1000, burn.in = 100, q = 10, d = 20)
+
+# cluster labels
 table(spe$BayesSpace <- factor(.spe$spatial.cluster))
 ```
 
+
 ## Visualizations
 
-Let's visualize cluster predictions in space, here alongside `ground_truth` spot labels from manual annotation:
+We can visualize the cluster labels in x-y space as spatial domains, alongside the manually annotated reference labels (`ground_truth`) available for this dataset.
 
-```{r plt-clu-xy, fig.width=7, fig.height=2.5, message=FALSE}
-plotSpots(spe, annotate="ground_truth") +
-plotSpots(spe, annotate="BayesSpace") +
-    plot_layout() &
-    theme(legend.key.size=unit(0, "lines")) &
-    scale_color_manual(values=unname(pals::trubetskoy())) 
+```{r plt-xy-clu, fig.width=7, fig.height=2.5, message=FALSE}
+# using plotting functions from ggspavis package
+# and formatting using patchwork package
+plotCoords(spe, annotate = "ground_truth") + 
+plotCoords(spe, annotate = "BayesSpace") + 
+  plot_layout() & 
+  theme(legend.key.size = unit(0, "lines")) & 
+  scale_color_manual(values = unname(pals::trubetskoy()))
 ```
 
-Inspecting the spatial distribution of the top PCs, we can observe that the main driver of expression variability is the distinction between white matter (WM) and non-WM brain layers:
+Inspecting the spatial distribution of the top PCs, we can observe that the main driver of expression variability is the distinction between white matter (WM) and non-WM cortical layers.
 
 ```{r plot-xy-pcs, collapse=TRUE, fig.width=8, fig.height=3}
 #| code-fold: true
@@ -148,62 +191,77 @@ pcs <- reducedDim(spe, "PCA")
 pcs <- pcs[, seq_len(4)]
 lapply(colnames(pcs), \(.) {
     spe[[.]] <- pcs[, .]
-    plotSpots(spe, annotate=.)
-}) |>
-    wrap_plots(nrow=1) &
-    geom_point(shape=16, stroke=0, size=0.2) &
-    scale_color_gradientn(colors=pals::jet()) &
-    coord_equal() & theme_void() & theme(
-        legend.position="bottom",
-        plot.title=element_text(hjust=0.5),
-        legend.key.width=unit(0.8, "lines"),
-        legend.key.height=unit(0.4, "lines"))
+    plotCoords(spe, annotate = .)
+}) |> 
+    wrap_plots(nrow = 1) & 
+    geom_point(shape = 16, stroke = 0, size = 0.2) & 
+    scale_color_gradientn(colors = pals::jet()) & 
+    coord_equal() & 
+    theme_void() & 
+    theme(legend.position = "bottom", 
+          plot.title = element_text(hjust = 0.5), 
+          legend.key.width = unit(0.8, "lines"), 
+          legend.key.height = unit(0.4, "lines"))
 ```
 
-## Marker genes
 
-Having clustered our spots, we can test for genes that are differentially expressed (DE) between domains (here, using pairwise t-tests and specifically testing for *up*regulation, i.e., expression should be higher in the cluster for which a gene is reported to be a marker); see @sec-crs-clustering.
-[We could also test for spatially variable genes (SVGs) within domains to identify spatial patterns in gene expression that may be independent of spatial domains; see @sec-crs-spatially-variable.]{.aside}
+## Differential expression
+
+Having clustered our spots to identify spatial domains, we can test for genes that are differentially expressed (DE) between spatial domains, which can be interpreted as marker genes for the spatial domains.
+
+Here, we will use pairwise t-tests and specifically test for upregulation (as opposed to downregulation), i.e. expression should be higher in the cluster for which a gene is reported to be a marker. See @sec-crs-clustering for additional details.
+
+Alternatively, we could also test for spatially variable genes (SVGs) within domains to identify genes with spatial expression patterns that vary independently of the spatial arrangement of domains. See @sec-crs-spatially-variable for details.
 
 ```{r mgs}
-mgs <- findMarkers(spe, groups=spe$BayesSpace, direction="up")
+# using scran package
+mgs <- findMarkers(spe, groups = spe$BayesSpace, direction = "up")
 top <- lapply(mgs, \(df) rownames(df)[df$Top <= 3])
 length(top <- unique(unlist(top)))
 ```
 
-We can visualize selected markers as a heatmap where bins represent the average expression (here, log-transformed library size-normalize counts) of a given gene (= columns) in a given cluster (= rows).
-[To visually amplify differences, we use `scale="column"`. This will, for every gene, subtract the mean and divide by the standard deviation across per-cluster means, bringing genes of potentially very different expression levels to a comparable scale.]{.aside}
+We can visualize selected marker genes as a heatmap where bins represent the average expression (here, log-transformed library size-normalized counts) of a given gene (= columns) in a given cluster (= rows).
+[To visually amplify differences, we use `scale = "column"`. This will, for every gene, subtract the mean and divide by the standard deviation across per-cluster means, bringing genes of potentially very different expression levels to a comparable scale.]{.aside}
 
 ```{r plt-mgs-hm, fig.width=9, fig.height=3}
 #| code-fold: true
-pbs <- aggregateAcrossCells(spe,  
-    ids=spe$BayesSpace, subset.row=top, 
-    use.assay.type="logcounts", statistics="mean")
-# use symbols as feature names
+pbs <- aggregateAcrossCells(spe, 
+    ids = spe$BayesSpace, subset.row = top, 
+    use.assay.type = "logcounts", statistics = "mean")
+
+# use gene symbols as feature names
 mtx <- t(assay(pbs))
 colnames(mtx) <- rowData(pbs)$gene_name
-pheatmap(mat=mtx, scale="column")
+
+# using pheatmap package
+pheatmap(mat = mtx, scale = "column")
 ```
 
-As well as in space, i.e., coloring spots by their expression of a given marker:
+In addition, we can plot in x-y space, i.e. coloring spots by their expression of a given marker gene.
 
-```{r plt-mgs-xy, fig.width=8, fig.height=5.5}
+```{r plt-mgs-xy, fig.width=8, fig.height=5.5, message=FALSE}
 ps <- lapply(
     c("MBP", "PLP1", "NRGN", "SNAP25", "NEFL", "HPCAL1"), \(.) 
-    plotSpots(spe, annotate=., feature_names="gene_name", assay_name="logcounts"))
-wrap_plots(ps, nrow=2) & theme(
-    legend.key.width=unit(0.4, "lines"),
-    legend.key.height=unit(0.8, "lines")) &
-    scale_color_gradientn(colors=rev(hcl.colors(9, "Rocket")))
+    plotCoords(spe, annotate = ., feature_names = "gene_name", 
+               assay_name = "logcounts"))
+
+wrap_plots(ps, nrow = 2) & 
+  theme(legend.key.width = unit(0.4, "lines"), 
+        legend.key.height = unit(0.8, "lines")) & 
+  scale_color_gradientn(colors = rev(hcl.colors(9, "Rocket")))
 ```
+
 
 ## Appendix
 
-### Saving {.unnumbered}
+### Save data {.unnumbered}
+
+Save data object for re-use within later chapters.
 
 ```{r save-data}
 colLabels(spe) <- spe$BayesSpace
 saveRDS(spe, "seq-spe_cl.rds")
 ```
+
 
 ### References {.unnumbered}

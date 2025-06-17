@@ -1,5 +1,0 @@
-# Sub-cellular analysis
-
-- `r BiocStyle::Githubpkg("SydneyBioX/SpatialFeatures")`
-
-## References {.unnumbered}

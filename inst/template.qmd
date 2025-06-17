@@ -14,7 +14,7 @@
 set.seed(77)
 library(ggplot2)
 library(BiocParallel)
-bp <- MulticoreParam(10)
+bp <- MulticoreParam(4)
 se <- readRDS("obj.rds")
 ```
 

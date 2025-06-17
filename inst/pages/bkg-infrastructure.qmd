@@ -1,4 +1,4 @@
-# Infrastructure {#sec-bkg-infrastructure}
+# Data infrastructure {#sec-bkg-data-infrastructure}
 
 ## Introduction
 
@@ -55,7 +55,7 @@ For both types of data, observations are associated with additional metadata suc
 
 ### Bioconductor-based
 
-#### `SingleCellExperiment`
+#### SingleCellExperiment
 
 Single-cell RNA-seq and analogous technologies quantify transcripts at single-cell resolution, yielding a transcripts-by-cells count matrix.
 In Bioconductor, the primary class for data from single-cell experiments is `r BiocStyle::Biocpkg("SingleCellExperiment")` [@Amezquita2020] (SCE).
@@ -64,7 +64,7 @@ SCE extends the `r BiocStyle::Biocpkg("SummarizedExperiment")` (SE) class by a s
 For instance, `reducedDims` for low-dimensional embeddings of observations such as PCA, t-SNE, and UMAP; `row`- and `colPairs` for relationships between genes (e.g. gene-to-gene correlations) and cells (e.g. cell-to-cell distances), respectively; and, data on alternative features from the same cells, such as those obtained via multi-modal assays, are stored as `altExps` (for 'alternative experiments').
 
 
-#### `SpatialExperiment`
+#### SpatialExperiment
 
 `r BiocStyle::Biocpkg("SpatialExperiment")` (SPE) [@Righelli2022] is the core data class used in this book. 
 This class allows us to store datasets at the spot or cell level, i.e. data from sequencing-based platforms at the spot level, or data from imaging-based platforms aggregated to the cell level.
@@ -79,13 +79,13 @@ knitr::include_graphics("../images/SpatialExperiment.png")
 ```
 
 
-#### `SpatialFeatureExperiment`
+#### SpatialFeatureExperiment
 
 SPE has been extended through `r BiocStyle::Biocpkg("SpatialFeatureExperiment")` (SFE) [@Moses2023-Voyager], which can additionally accommodate observation- and feature-level graphs (e.g. of cell/spot neighborhoods) and geometries (e.g. segmentation and tissue boundaries, or histological regions annotated by a pathologist).
 Because these are represented as `r BiocStyle::CRANpkg("sf")` (geometries) and `r BiocStyle::CRANpkg("spdep")` (graphs) objects, SFE directly gives access to a range of geometry operations (e.g. intersecting and buffering) and spatial dependency calculations (e.g. Moran's I and Geary's C).
 
 
-#### `MoleculeExperiment`
+#### MoleculeExperiment
 
 `r BiocStyle::Biocpkg("MoleculeExperiment")` (ME) [@PetersCouto2023-MoleculeExperiment] is designed for imaging-based spatial transcriptomics data.
 For each sample, ME stores a list of `molecules` (e.g. transcript identities and coordinates), and `boundaries` (e.g. cell identities and polygon coordinates).
@@ -99,17 +99,17 @@ Analyses at the aggregated cell level may, in turn, be carried out using an ME-d
 There are several other frameworks outside Bioconductor that support spatially-aware analysis for both sequencing- and imaging-based platforms. `r BiocStyle::Githubpkg("satijalab/seurat")` and `scanpy` [@Wolf2018-scanpy] provide comprehensive single-cell analysis pipelines in R and Python, respectively, and incorporate features to visualize and analyze spatial omics datasets. Packages including `r BiocStyle::Githubpkg("drieslab/Giotto")` [@Chen2023-Giotto] (R), `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` (R) [@Manukyan2023-VoltRon], and `squidpy` (Python) [@Palla2022-squidpy] support all-in-one frameworks for analyzing spatial omics data and contain extensive sets of spatially-aware algorithms.
 
 
-#### `Giotto`
+#### Giotto
 
 `r BiocStyle::Githubpkg("drieslab/Giotto")` [@Chen2023-Giotto] (or Giotto Suite) provides tools to process, analyze and visualize spatial multi-omics data at multiple scales and resolutions. The package supports the analysis of an extensive set of sequencing- and imaging-based platforms with either transcriptomics and proteomics modailities such as Xenium, Visium HD and CODEX (Akoya). `Giotto` provides utilities to manipulate spatial objects and images, detect spatial patterns and spatially-aware clusters, and support database-based backed data using `r BiocStyle::Githubpkg("drieslab/dbverse")` for scalability.
 
 
-#### `VoltRon`
+#### VoltRon
 
 The `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` package incorporates a framework that allows spatially-aware alignment between datasets with observations that span across regions of interest (ROIs) and image tiles in addition to cells, spots, and molecules. `Shiny` applications are provided to conduct both automated and manual spatial alignment across adjacent tissue sections where users can interactively manage images and choose landmark points for co-registration. `VoltRon` is also an end-to-end spatial omics analysis package, and support on-disk representations of spatially-resolved datasets using *.zarr* and *.h5* backed `r BiocStyle::Biocpkg("DelayedArray")` objects.
 
 
-#### `SpatialData`
+#### SpatialData
 
 The [`SpatialData`](https://spatialdata.scverse.org) [@Marconato2025-SpatialData] framework (@fig-spd) offers a suite of modules for loading, handling, as well as (static and interactive) visualization of diverse spatial omics data (spanning imaging- and sequencing-based data and different modalities).
 In essence, the container relies on 5 types of elements (images, labels, shapes, points, and tables), which are represented on-disk using standardized, OME-NGFF compliant file formats (*.zarr* for images, labels, and tables; *.parquet* for shapes and polygons), enabling unified and memory-efficient data representation and handling.

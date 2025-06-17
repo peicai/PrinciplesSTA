@@ -2,7 +2,10 @@
 
 ## Session info {-}
 
+Session information from the current build of the book.
+
 ```{r "session info"}
+#| code-fold: true
 #| cache: false
 sessioninfo::session_info(
   installed.packages()[, "Package"], 

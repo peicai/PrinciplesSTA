@@ -1,0 +1,135 @@
+# Differential spatial patterns {#sec-mult-diff-spatial}
+
+## Preamble
+
+### Introduction
+
+Recent advances in spatial transcriptomics (ST) techniques have facilitated the generation of multi-sample datasets across various experimental conditions (e.g. healthy vs. diseased, or multiple treatments).
+
+When multi-sample, multi-condition ST data are available, differential analysis can be performed to identify genes with distinct spatial expression patterns between conditions, which we call differential spatial pattern (DSP) genes. A DSP gene may be spatially variable in one condition and display spatially uniform expression in another one, or it could be spatially variable in all conditions, but with distinct spatial expression patterns. Conversely, genes that show spatially uniform abundance, or that are spatially variable with the same spatial structure in all conditions, are not considered DSP, because their spatial distribution is unchanged.
+
+Identifying DSP genes can provide valuable insights into how gene expression spatial structures change across experimental conditions, helping to understand the underlying biological processes.
+
+
+### Dependencies
+
+```{r deps, message=FALSE, warning=FALSE}
+library(muSpaData)
+library(ggspavis)
+library(DESpace)
+library(edgeR)
+```
+
+
+### Load data
+
+In this demo, we will analyze a Stereo-seq dataset from axolotl brain tissues collected at various stages of regeneration [@Wei2022-axolotl], which includes multiple samples (i.e. serial sections) measured under multiple experimental conditions (regeneration stages).
+
+In the original dataset, which is publicly available through the [Spatial Transcript Omics DataBase](https://db.cngb.org/stomics/datasets/STDS0000056/data), there are 5 stages with multiple sections, totaling 16 samples (3 to 4 sections per stage).
+
+In this chapter, for computational reasons, we use 3 stages -- 2, 10, and 20 days post injury (DPI) -- and only two sections per stage. The analysis framework uses pre-computed spatial domains generated with `r BiocStyle::Biocpkg("Banksy")` [@Singhal2024-BANKSY]. For performing clustering with `Banksy`, refer to @sec-crs-clustering. For preprocessing details of this dataset, see the `r BiocStyle::Biocpkg("muSpaData")` Bioconductor package.
+
+```{r data, message=FALSE, warning=FALSE}
+spe <- Wei22_example()
+```
+
+```{r plt-clu-xy, message=FALSE, warning=FALSE, fig.width=8}
+#| code-fold: true
+colnames(spatialCoords(spe)) <- c("x", "y")
+plotCoords(spe, 
+    annotate = "Banksy_smooth", 
+    in_tissue = NULL, 
+    x_coord = "sdimx", 
+    y_coord = "sdimy", 
+    sample_id = "sample_id") + 
+    theme(legend.key.size = unit(0, "lines")) + 
+    scale_color_manual(values=unname(pals::trubetskoy()))
+```
+
+
+## DESpace
+
+Here, we briefly demonstrate how to identify DSP genes using the `r BiocStyle::Biocpkg("DESpace")` [@Cai2024-DESpace] Bioconductor package. For more details see the [package vignette](https://peicai.github.io/DESpace/articles/DSP.html).
+
+```{r dsp-global, message=FALSE, warning=FALSE, results='hide'}
+# run DESpace
+dsp <- dsp_test(spe = spe, cluster_col = "Banksy_smooth", 
+                sample_col = "sample_id", condition_col = "condition", 
+                verbose = TRUE)
+```
+
+```{r res-global, warning=FALSE}
+head(dsp_global <- dsp$gene_results, n = 3)
+
+# count significant DSP genes (at 5% FDR significance level)
+table(dsp_global$FDR <= 0.05)
+```
+
+In order to identify the key spatial cluster where expression changes across conditions, we use `individual_dsp()` function.
+
+```{r dsp-individual, message=FALSE, warning=FALSE, results='hide'}
+dsp_clu <- individual_dsp(spe, cluster_col = "Banksy_smooth", 
+                          sample_col = "sample_id", condition_col = "condition")
+```
+
+```{r res-individual, warning=FALSE}
+# results for cluster 2
+dsp_clu2 <- dsp_clu$`2`
+head(dsp_clu2, n = 3)
+
+# top DSP gene for cluster 2
+top_dsp <- dsp_clu2$gene_id[1]
+
+# get gene symbols from Ensembl identifiers
+idx <- match(top_dsp, rowData(spe)$gene_name)
+(.gs <- rowData(spe)$gene_id[idx])
+```
+
+
+## Visualization
+
+DSP genes can be further investigated, for example, by plotting the spatial expression of genes across groups, or the log2-transformed counts per million of genes across different clusters and groups.
+
+```{r plt-xy, message=FALSE, warning=FALSE, fig.width=7.5}
+#| code-fold: true
+plotCoords(spe, 
+    annotate = .gs, 
+    assay_name = "logcounts", 
+    feature_names = "gene_id", 
+    in_tissue = NULL, 
+    x_coord = "sdimx", 
+    y_coord = "sdimy", 
+    sample_id = "sample_id") + 
+    theme(legend.key.size=unit(1, "lines"))
+```
+
+```{r plt-cpm, message=FALSE, warning=FALSE, fig.width=5.5}
+#| code-fold: true
+# calculate log CPM
+cps <- edgeR::cpm(dsp$estimated_y, log = TRUE)
+cps_name <- colnames(cps)
+mdata <- data.frame(
+    log_cpm = cps[top_dsp, ], 
+    Banksy_smooth = factor(sub(".*_", "", cps_name)), 
+    day = as.numeric(sub("([0-9]+)DPI.*", "\\1", cps_name)), 
+    sample_id = sub("(_[0-9]+)$", "", cps_name)
+)
+
+ggplot(mdata, aes(x = factor(day), y = log_cpm)) + 
+    geom_jitter(aes(color = Banksy_smooth), size = 2, width = 0.1) + 
+    geom_boxplot(aes(fill = ifelse(Banksy_smooth == "2", 
+                                   "cluster 2", "non-cluster 2"))) + 
+    scale_x_discrete(breaks = c(2, 10, 20)) + 
+    scale_fill_manual(values = c("#4DAF4A", "gray")) + 
+    labs(title = .gs, x = "Days post injury", 
+         y = "log2 counts per million (logCPM)", fill = "", 
+         color = "Banksy cluster") + 
+     theme(legend.position = "right")
+```
+
+The boxplots above show the average log-CPM for cluster 2 and for all other clusters (excluding cluster 2) across different time phases. The largest difference between cluster 2 and the remaining clusters is observed at 2 DPI, with the difference decreasing over time. At 20 DPI, no significant log-CPM differences are observed between the clusters. This suggests that spatial patterns change across conditions (i.e. time stages).
+
+
+## Appendix
+
+### References {.unnumbered}

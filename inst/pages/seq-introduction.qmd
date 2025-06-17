@@ -1,14 +1,11 @@
 # Introduction {#sec-seq-introduction}
 
-<!-- [commenting this out to match imaging] This part contains a series of chapters describing (i) individual **analysis steps**, followed by (ii) extended **workflows**, for data from sequencing-based spatial transcriptomics platforms (see @sec-bkg-spatial-omics for an overview of the types of technological platforms). -->
+## Introduction to sequencing-based ST
 
-<!-- The chapters on the individual analysis steps contain relatively detailed information, including discussion on the purpose of each step, and links to alternative methods. By contrast, the workflow chapters are more condensed, showing how to put together the analysis steps into complete workflows. -->
-
-## Background
-
-Sequencing-based spatial transcriptomics represents a set of methods that combine high-throughput gene expression profiling from high-throughput sequencing assays with spatial information derived from unique barcodes that are location-specific. Thus, gene expression patterns can profiling while retaining spatial arrangement.
+Sequencing-based spatial transcriptomics (ST) platforms combine high-throughput gene expression profiling from high-throughput sequencing assays with spatial information derived from unique barcodes that are location-specific. Thus, gene expression patterns can be profiled while retaining spatial arrangement.
 
 Several steps are involved, including tissue preparation, RNA capture, reverse transcription, and high-throughput sequencing. Bioinformatically, reads are mapped to reference transcriptomes (or annotated genomes) and reads are further parsed to determine their original spatial origin.
+
 
 ## Platforms
 
@@ -16,22 +13,29 @@ Several steps are involved, including tissue preparation, RNA capture, reverse t
 
 The [10x Genomics Visium](https://www.10xgenomics.com/products/spatial-gene-expression) platform measures transcriptome-scale gene expression at a hexagonal grid of spatial locations (referred to as spots) on a tissue capture area on a slide. Either fresh-frozen or formalin-fixed paraffin-embedded (FFPE) tissue may be used. Each spot contains millions of spatially-barcoded capture oligonucleotides, which bind to mRNAs from the tissue. A cDNA library is then generated for sequencing, which includes the spatial barcodes, allowing reads to be mapped back to their spatial locations.
 
-The array dimensions are 6.5 x 6.5 mm, with around 5000 barcoded spots. Spots are 55 µm in diameter and spaced 100 µm center-to-center in a hexagonal grid arrangement. The number of cells overlapping with each spot depends on the tissue cell density, e.g. around 0-10 for human brain tissue or ~50 for mouse brain tissue. Each Visium slide contains four tissue capture areas. The following figure provides an illustration.
+The array dimensions are 6.5 x 6.5 mm, with around 5000 barcoded spots. Spots are 55 µm in diameter and spaced 100 µm center-to-center in a hexagonal (honeycomb) grid arrangement. The number of cells overlapping with each spot depends on the tissue cell density, e.g. around 0-10 for human brain tissue or ~50 for mouse brain tissue. Each Visium slide contains four tissue capture areas. The following figure provides an illustration.
 
 Histology images generated from hematoxylin and eosin (H&E) staining can be used to identify anatomical and cell morphological features for each sample, including the number of cells per spot.
 
-An earlier version of the platform was developed by @Stahl2016, which was subsequently improved and commercialized as the 10x Genomics Visium platform.
+An earlier version of the platform was originall developed by @Stahl2016, which was subsequently improved and commercialized as the 10x Genomics Visium platform.
 
-```{r, echo = FALSE, out.width = "75%", fig.cap = "Schematic illustrating the 10x Genomics Visium platform. Source: [10x Genomics Visium](https://www.10xgenomics.com/spatial-transcriptomics/)"}
+The [Visium CytAssist](https://www.10xgenomics.com/instruments/visium-cytassist) instrument provides streamlined experimental procedures, making the platform more accessible to new research labs.
+
+```{r, echo = FALSE, out.width = "70%", fig.cap = "Schematic illustrating the 10x Genomics Visium platform. Source: [10x Genomics Visium](https://www.10xgenomics.com/spatial-transcriptomics/)"}
 knitr::include_graphics("../images/Visium.png")
 ```
 
 
 ### 10x Genomics Visium HD
 
-The [10x Genomics Visium HD](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression) platform provides higher spatial resolution. Capture area dimensions are 6.5 x 6.5 mm, with a continuous "lawn" of capture oligonucleotides arranged into a grid of 2 x 2 µm barcoded squares, which can be aggregated into 8 x 8 µm and 16 x 16 µm bins, or cells based on cell boundary polygon coordinates [@polanski2024bin2cell] for downstream analyses. There are no gaps between the grid squares, and there are two capture areas per slide. The high spatial resolution of the barcoded squares provide near-single-cell resolution, while the use of sequencing provides transcriptome-scale gene coverage. With its higher resolution and data coverage, increased sparsity is expected. Therefore, new computational challenges, such as careful quality control, imputation and denoising techniques, and longer computational time, should be considered when performing the analysis. 
+The [10x Genomics Visium HD](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression) platform provides higher spatial resolution. Capture area dimensions are 6.5 x 6.5 mm, with a continuous "lawn" of capture oligonucleotides arranged into a grid of 2 x 2 µm barcoded squares, which can be aggregated into 8 x 8 µm and 16 x 16 µm bins, or cells based on cell boundary polygon coordinates (e.g. using methods such as `Bin2cell` [@polanski2024bin2cell]) for downstream analyses. There are no gaps between the grid squares, and there are two capture areas per slide.
 
-A preprint describing the platform and its application to human colorectal cancer samples is available from 10x Genomics [@Oliveira2024].
+The high spatial resolution of the barcoded squares provides near-single-cell resolution, while the use of sequencing provides transcriptome-scale gene coverage. With its higher resolution and data coverage, increased sparsity is expected. Therefore, new computational challenges, such as quality control, imputation and denoising techniques, and longer computational time, should be considered when performing the analysis.
+
+A paper describing the platform and its application to human colorectal cancer samples is available from 10x Genomics [@Oliveira2024].
+
+<!-- To do: add a schematic, e.g. illustrating continuous "lawn" / bins arrangement -->
+
 
 ### Curio Seeker
 
@@ -40,14 +44,18 @@ The [Curio Seeker](https://curiobioscience.com/product/) platform is a commercia
 The Curio Seeker platform captures mRNA molecules at a set of randomly placed spatial measurement locations (referred to as "beads") on a tissue slide (referred to as a "tile") at high spatial resolution. The tile dimensions are 3 mm x 3 mm, and the spatial resolution consists of tightly packed 10 µm diameter beads.
 
 
-## Resources
-- Instrument for obtaining 10x Genomics Visium (HD) data from Visium (HD) slide:
-  - [CytAssist](https://www.10xgenomics.com/instruments/visium-cytassist)
-- Commercially available datasets
-  - [Visium HD datasets](https://www.10xgenomics.com/products/visium-hd-spatial-gene-expression)
-  - [10x Genomics datasets (includes Visium, Visium HD)](https://www.10xgenomics.com/datasets)
+### STOmics Stereo-seq
+
+The [STOmics Stereo-seq](https://en.stomics.tech/why-stereo-seq/index.html) platform provides a large field of view and high spatial resolution. Chip sizes are currently available in either 5 mm x 5 mm or 10mm x 10mm sizes, with customized larger sizes also possible, making it possible to measure transcriptome-scale expression across large continuous tissue areas. The high spatial resolution of 500 nm enables both cellular and subcellular-level analyses.
 
 
 ## Appendix
+
+### Resources {.unnumbered}
+
+Datasets available from commercial providers of the platforms:
+
+- [10x Genomics](https://www.10xgenomics.com/datasets) (includes Visium and Visium HD)
+
 
 ### References {.unnumbered}

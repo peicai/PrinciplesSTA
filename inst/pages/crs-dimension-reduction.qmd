@@ -1,8 +1,8 @@
 # Dimension reduction {#sec-crs-dimension-reduction}
 
-# Preamble
+## Preamble
 
-## Introduction
+### Introduction
 
 In single-cell omics data analysis, dimension reduction (DR) techniques are often categorized as linear (e.g., multi-dimensional scaling (MDS), linear discriminant analysis (LDA), principal component analysis (PCA)), or non-linear (e.g., t-distributed stochastic neighbor embedding (t-SNE), uniform manifold approximation and projection (UMAP)); see [OSCA](https://bioconductor.org/books/release/OSCA.basic/dimensionality-reduction.html).
 
@@ -11,7 +11,7 @@ Spatially aware DR may be used as input for standard single-cell clustering appr
 While these approach may differ in methodological detail, they are arguably similar conceptually.
 We will try and demonstrate as much here.
 
-## Dependencies
+### Dependencies
 
 ```{r load-libs, message=FALSE, warning=FALSE}
 library(dplyr)
@@ -96,7 +96,8 @@ Exemplary plots of PCs 1-3 are rendered below:
 
 ```{r plot-xy-pcs, collapse=TRUE, fig.width=11, fig.height=3}
 #| code-fold: true
-df <- data.frame(colData(spe), reducedDim(spe, "PCA_tx"))
+df <- data.frame(colData(spe), spatialCoords(spe), 
+                 reducedDim(spe, "PCA_tx"))
 lapply(paste0("PC", seq(3)), \(.) {
     fd <- df[order(abs(df[[.]])), ]
     ggplot(fd, aes(x_centroid, y_centroid, col=.data[[.]]))
@@ -119,7 +120,7 @@ pcs <- reducedDim(spe, "PCA_tx")[, seq(3)]
 pcs <- sweep(pcs, 2, colMins(pcs), `-`)
 pcs <- sweep(pcs, 2, colMaxs(pcs), `/`)
 rgb <- apply(pcs, 1, \(.) rgb(.[1], .[2], .[3]))
-df <- data.frame(colData(spe), rgb)
+df <- data.frame(colData(spe), spatialCoords(spe), rgb)
 ```
 
 E.g., we see that colors corresponding to opposing PC values are clearly separated in space, indicating distinct drivers of transcriptional variability.
@@ -146,6 +147,7 @@ ggplot(df, aes(x_centroid, y_centroid, col=rgb)) +
         legend.key.size=unit(0, "lines"),
         plot.title=element_text(hjust=0.5))
 ```
+
 
 ## Appendix
 

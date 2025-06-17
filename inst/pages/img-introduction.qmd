@@ -1,6 +1,6 @@
 # Introduction {#sec-img-introduction}
 
-## Background
+## Introduction to imaging-based ST
 
 Imaging-based ST assays have gone from resolving 100s to 1000s of features.
 Their commercialization by Vizgen, NanoString, and 10x Genomics has made these data increasingly popular. 
@@ -9,9 +9,11 @@ Briefly, targets are preassigned a barcode of (multi-color) 'on' and (no-color) 
 After iterative imaging-bleaching, individual reporter binding events are identified computationally (spot calling).
 Aligning spots along the image z-stack then allows to identify individual targets based on a predefined barcoding scheme.
 
+<!--
 ```{r echo=FALSE, out.width="100%", fig.lab="test", fig.cap="**Schematic of barcoded FISH** RNA targets are preassigned a sequence (= barcode) of 'on' and 'off' rounds. In each imaging round, a subset of targets is bound by a complementary probe, which is linked to a fluorescent reporter. After multiple rounds of imaging and stripping, images are decoded computationally to call targets. [*source: https://moffittlab.github.io*]"}
 knitr::include_graphics("https://moffittlab.github.io/img/MERFISH%20Introduction-01.png")
 ```
+-->
 
 ::: {.callout-note collapse="true" title="high-plex barcoding"}
 1,000-plex CosMx, for example, employs 64-bit barcodes (4 immunofluorescent reports over 16 cycles of imaging-bleaching) with a Hamming weight and distance of 4 (i.e., every target is 'on' in 4 rounds and 'off' in 12 rounds; each barcode differs from all others by 4 bits as to minimize RNA decoding errors).
@@ -65,7 +67,10 @@ The [Vizgen MERSCOPE platform](https://vizgen.com/products/), among the fluoresc
 - Processed files (typically the starting point of a Bioconductor analysis) include: transcript files, segmentation mask, expression matrix (cell x gene), and cell metadata (with xy coordinates of their centroids), and optionally a polygon file which represents the cell boundaries.
 -->
 
-## Resources
+
+## Appendix
+
+### Resources {.unnumbered}
 
 - Available datasets
   - [Xenium (10x Genomics)](https://www.10xgenomics.com/datasets)
@@ -73,5 +78,6 @@ The [Vizgen MERSCOPE platform](https://vizgen.com/products/), among the fluoresc
   - [MERSCOPE (Vizgen)](https://vizgen.com/data-release-program)
 - Platform-specific methods
   - [CosMx analysis](https://nanostring-biostats.github.io/CosMx-Analysis-Scratch-Space)
-  
-## References {.unnumbered}
+
+
+### References {.unnumbered}

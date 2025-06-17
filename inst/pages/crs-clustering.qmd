@@ -1,8 +1,3 @@
----
-output: html_document
-editor_options: 
-  chunk_output_type: inline
----
 # Clustering {#sec-crs-clustering}
 
 ## Preamble
@@ -62,7 +57,7 @@ k <- cluster_leiden(g, objective_function="modularity", resolution=1.2)
 table(spe$Leiden <- factor(k$membership))
 ```
 
-### Spatially aware
+### Spatially-aware
 
 Several methods to identify spatial domains in ST data have recently been developed, which each have various methodological and computational tradeoffs. 
 A few example include `r BiocStyle::Biocpkg("BayesSpace")` [@Zhao2021-BayesSpace], `r BiocStyle::Biocpkg("Banksy")` [@Singhal2024-BANKSY] and `r BiocStyle::CRANpkg("PRECAST")` [@Liu2023-PRECAST] in R, as well as `r BiocStyle::Githubpkg("CellCharter")` [@Varrone2024-CellCharter] and `r BiocStyle::Githubpkg("SpaceFlow")` [@Ren2022-SpaceFlow] in Python.
@@ -89,7 +84,7 @@ table(vis$BayesSpace <- factor(.vis$spatial.cluster))
 #### Neighborhood-based
 
 `r BiocStyle::Biocpkg("BANKSY")` [@Singhal2024-BANKSY] embeds cells in a product space of their own and their local neighborhood's (average) transcriptome, representing cell state and microenvironment.
-We have already computed `Banksy` PCs in @sec-crs-dimension-reduction (`reducedDim` slot `PCA_sp`) so that here, we perform SNN graph-based Leiden clustering on said PCs in order to obtain spatially aware cluster assignments:
+We have already computed `Banksy` PCs in @sec-crs-dimension-reduction (`reducedDim` slot `PCA_sp`) so that here, we perform SNN graph-based Leiden clustering on said PCs in order to obtain spatially-aware cluster assignments:
 [Note that we are using a lower `resolution` here, as `Banksy` PCs tend to yield more clusters on the data at hand.]{.aside}
 
 ```{r clu-Banksy, message=FALSE}
@@ -193,13 +188,13 @@ spe$CellCharter <- unlist(py$label_df)
 * Smoothness entropy checking
 -->
 
-Let's visualize the assignment obtains from non-spatial and spatially aware clustering:
+Let's visualize the assignment obtains from non-spatial and spatially-aware clustering:
 
 ```{r plot-xy-k-joint, message=FALSE, fig.width=11, fig.height=6}
 #| code-fold: true
 ks <- c("Label", "Leiden", "Banksy")#, "CellCharter")
 lapply(ks, \(.) {
-    plt <- plotSpots(spe, annotate=.)
+    plt <- plotCoords(spe, annotate=.)
     plt$layers[[1]]$aes_params$stroke <- 0
     plt$layers[[1]]$aes_params$size <- 0.2
     plt
@@ -221,7 +216,7 @@ To better distinguish between different subpopulations, we can instead generate 
 lapply(tail(names(sort(table(spe$Banksy))), 12), \(k) {
     spe$foo <- spe$Banksy == k
     spe <- spe[, order(spe$foo)]
-    plt <- plotSpots(spe, annotate="foo")
+    plt <- plotCoords(spe, annotate="foo")
     plt$layers[[1]]$aes_params$stroke <- 0
     plt$layers[[1]]$aes_params$size <- 0.2
     plt + ggtitle(k)
@@ -260,7 +255,7 @@ pcr <- lapply(ids, \(id) {
 }) |> do.call(what=rbind)
 ```
 
-Here, `Leiden` (transcription-only) and `Banksy` (spatially aware) clusterings perform similar in terms of capturing (spatially unaware) PCs; as to be expected, `Leiden` clusters do slightly better.
+Here, `Leiden` (transcription-only) and `Banksy` (spatially-aware) clusterings perform similar in terms of capturing (spatially unaware) PCs; as to be expected, `Leiden` clusters do slightly better.
 Had we set a higher value for $\lambda$ when running `Banksy`, results would diverge more; vice versa, using spatial PCs for regression would have `Leiden` clusters perform worse.
 Also, note that we would expect results to converge for $\lambda=0$.
 
@@ -305,15 +300,18 @@ pbs <- aggregateAcrossCells(spe,
 pheatmap(mat=t(assay(pbs)), scale="column", breaks=seq(-2, 2, length=101))
 ```
 
+
 ## Appendix
 
 ### Reviews {.unnumbered}
 
 * [https://doi.org/10.1093/bfgp/elae040](@Wang2024) categorize ST clustering approaches into probability statistics-, graph neural network- and contrastive learning-based approaches, and review their advantages and limitations for clustering of data from seq- and img-based assays.
 
+
 ### Benchmarks {.unnumbered}
 
 * [https://doi.org/10.1186/s13059-024-03361-0](@Hu2024) compare 16 graph- and statistic-based approaches, including `BayesSpace` and `BANKSY`, across 10 (mostly seq-based) datasets.
 * [https://doi.org/10.1016/j.csbj.2023.11.055](@Liu2024) compare eight GNN-based approaches, including `SpaceFlow`, across four seq- and one img-based dataset.
+
 
 ### References {.unnumbered}

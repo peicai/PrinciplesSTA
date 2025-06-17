@@ -1,23 +1,21 @@
-# Datasets {#sec-bkg-datasets}
+# Example datasets {#sec-bkg-datasets}
 
 ## Introduction
 
-Throughout this book, we will rely on a set of publicly available datasets that cover different sequencing- and imaging-based platforms, namely: Visium, Visium HD, Xenium (10x Genomics), and CosMx (NanoString).
+For the examples in this book, we will rely on a set of publicly available datasets that cover different sequencing-based and imaging-based platforms, namely: Visium, Visium HD, Xenium (10x Genomics), and CosMx (NanoString).
+
+This chapter provides an overview of the example datasets used in the code examples in the later chapters.
 
 
 ## Distribution
 
-These datasets have been deposited in an Open Storage Framework (OSF) repository [here](https://osf.io/5n4q3), and can be easily queried and downloaded using functions from the `r BiocStyle::CRANpkg("osfr")` package. For convenience, we have implemented the `OSTA.data` package to:
+### OSF repository and OSTA.data
+
+These datasets have been deposited in an Open Storage Framework (OSF) repository [here](https://osf.io/5n4q3), and can be easily queried and downloaded using functions from the `r BiocStyle::CRANpkg("osfr")` package. For convenience, we have implemented the `r BiocStyle::Biocpkg("OSTA.data")` package to:
 
 - list and retrieve datasets available through our OSF node
 - cache data as a *.zip* archive using `r BiocStyle::Biocpkg("BiocFileCache")`
 - expose logical scalars `pol`ygons and `mol`ecules to skip these data
-
-```{r osta-data, eval=FALSE}
-if (!require("BiocManager", quietly=TRUE))
-    install.packages("BiocManager")
-BiocManager::install("estellad/OSTA.data")
-```
 
 The following datasets are currently available:
 
@@ -27,12 +25,22 @@ OSTA.data_list()
 ```
 
 
-## Description
+### STexampleData
+
+In addition, several datasets are available from the `r BiocStyle::Biocpkg("STexampleData")` package as pre-formatted `SpatialExperiment` and `SingleCellExperiment` formats. These data objects are stored on Bioconductor's `r BiocStyle::Biocpkg("ExperimentHub")` resource, and can be loaded within R code examples by querying `ExperimentHub` or using loader functions provided in the `STexampleData` package.
+
+```{r list-stexampledata, message=FALSE, warning=FALSE, echo=TRUE, results="hide"}
+library(STexampleData)
+?STexampleData
+```
+
+
+## Datasets
 
 Below, we briefly summarize the characteristics of each dataset, and note across which parts of the book each dataset is being used.
 
 
-### `HumanBreast_Janesick`
+### HumanBreast_Janesick
 
 In the underlying paper, the Xenium data (2 replicates) were accompanied by consecutive slices of Chromium and Visium data. Therefore, these replicates are expected to have nearly identical biological findings. By transferring Chromium cell type labels to spatial technologies, such as Visium (with full transcriptome) and Xenium (at single-cell resolution), we can combine analytical insights from different platforms.
 
@@ -50,7 +58,8 @@ In the underlying paper, the Xenium data (2 replicates) were accompanied by cons
   - replicate 1: 313 RNA targets x 167,780 cells
   - replicate 2: 313 RNA targets x 118,752 cells
 
-### `HumanColon_Oliveira`
+
+### HumanColon_Oliveira
 
 In the underlying paper, there are both normal adjacent tissue (NAT) and colorectal carcinoma (CRC) samples from 5 patients. The Visium HD data (P2 CRC) were accompanied by consecutive slices of Chromium, Visium, and Xenium data. Therefore, we can jointly analyze these modalities.
 
@@ -73,7 +82,7 @@ In the underlying paper, there are both normal adjacent tissue (NAT) and colorec
     - 422 RNA targets x 340,837 cells
 
 
-### `CosMx1k_MouseBrain1/2`
+### CosMx1k_MouseBrain1/2
 
 There are two sections from the CosMx mouse brain sample, namely "coronal hemisphere" (sample 1) and "coronal hippocampus and cortex" (sample 2).
 
@@ -83,7 +92,7 @@ There are two sections from the CosMx mouse brain sample, namely "coronal hemisp
   - 38,996 cells (coronal hippocampus and cortex)
 
 
-### `CosMx6k_HumanBrain`
+### CosMx6k_HumanBrain
 
 The CosMx human prefrontal cortex sample has a larger gene panel of \~6,000 RNA targets.
 

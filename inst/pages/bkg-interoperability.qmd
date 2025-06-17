@@ -4,16 +4,13 @@
 
 Ideally, users would be able to leverage the full range of available tools for their analysis. Methods should be selected based on scientific merit (as demonstrated by third-party benchmarks), and independent of having been implemented in a given programming language (R or Python) or framework (say, Bioconductor or `Seurat`).
 
-[R's application to spatial data dates back decades, primarily in epidemiological and geospatial research. As a result, various tools for spatial analyses have been established; for example, `r BiocStyle::CRANpkg("sp")` provides a "coherent set of classes and methods for [...] points, lines, polygons, and grids"; `r BiocStyle::CRANpkg("spatstat")` and, more recently, `r BiocStyle::CRANpkg("sf")` provide tools for spatial point pattern and vector data, respectively.]{.aside}
-For single-cell and spatial omics data analysis, being able to leverage different ecosystems is especially powerful. On the one hand, Python offers superb infrastructure for image analysis and machine learning-based approaches.
-On the other hand, the R programming language has been historically dedicated to statistical computing; as a result, many a modern R method for spatial omics data builds on a solid foundation of tools for spatial statistics and statistical modeling in general.
+[R's application to spatial data dates back decades, primarily in epidemiological and geospatial research. As a result, various tools for spatial analyses have been established; for example, `r BiocStyle::CRANpkg("sp")` provides a "coherent set of classes and methods for \[...\] points, lines, polygons, and grids"; `r BiocStyle::CRANpkg("spatstat")` and, more recently, `r BiocStyle::CRANpkg("sf")` provide tools for spatial point pattern and vector data, respectively.]{.aside} For single-cell and spatial omics data analysis, being able to leverage different ecosystems is especially powerful. On the one hand, Python offers superb infrastructure for image analysis and machine learning-based approaches. On the other hand, the R programming language has been historically dedicated to statistical computing; as a result, many a modern R method for spatial omics data builds on a solid foundation of tools for spatial statistics and statistical modeling in general.
 
-Different data structures, although standardized within a given framework, make switching between languages and tools especially cumbersome.
-In the realm of single-cell and spatial omics, Bioconductor tools build around `r BiocStyle::Biocpkg("SummarizedExperiment")`-derived classes, while `r BiocStyle::CRANpkg("Seurat")`, `r BiocStyle::CRANpkg("Giotto")` and `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` rely on objects built in-house; and Python's [`scanpy`](https://scanpy.readthedocs.io/) [@Wolf2018-scanpy] and [`squidpy`](https://squidpy.readthedocs.io/) [@Palla2022-squidpy] use [`AnnData`](https://anndata.readthedocs.io/). Attempts to alleviate the problem are being made; e.g. `r BiocStyle::Biocpkg("zellkonverter")` and functions from `r BiocStyle::CRANpkg("Seurat")` allow for conversion between Python's `AnnData` and R/Bioconductor's `r BiocStyle::Biocpkg("SingleCellExperiment")`.
+Different data structures, although standardized within a given framework, make switching between languages and tools especially cumbersome. In the realm of single-cell and spatial omics, Bioconductor tools build around `r BiocStyle::Biocpkg("SummarizedExperiment")`-derived classes, while `r BiocStyle::CRANpkg("Seurat")`, `r BiocStyle::CRANpkg("Giotto")` and `r BiocStyle::Githubpkg("BIMSBbioinfo/VoltRon")` rely on objects built in-house; and Python's [`scanpy`](https://scanpy.readthedocs.io/) [@Wolf2018-scanpy] and [`squidpy`](https://squidpy.readthedocs.io/) [@Palla2022-squidpy] use [`AnnData`](https://anndata.readthedocs.io/). Attempts to alleviate the problem are being made; e.g. `r BiocStyle::Biocpkg("zellkonverter")` and functions from `r BiocStyle::CRANpkg("Seurat")` allow for conversion between Python's `AnnData`, R/Bioconductor's `r BiocStyle::Biocpkg("SingleCellExperiment")` and also `r BiocStyle::Biocpkg("SingleCellExperiment")`.
 
-[[Quarto](https://quarto.org) is the successor of [R Markdown](https://rmarkdown.rstudio.com) by Posit (formerly known as RStudio). Similar to *.rmd* files, *.qmd* files can include scientific content (e.g. cross-referencing, LaTeX-based equations), and can be published in multiple output formats (HTML, PDF, etc.). -- This book uses Quarto.]{.aside}
-On a higher level, tools that enable interoperability between programming languages have become available. For example, the `r BiocStyle::Biocpkg("reticulate")` package provides an R interface to Python, including support to translate between objects from both languages; `r BiocStyle::Biocpkg("basilisk")` facilitates Python environment management within the Bioconductor ecosystems, but can be interfaced with `reticulate` as well; and, Quarto can generate dynamic reports from code in different languages.
+[[Quarto](https://quarto.org) is the successor of [R Markdown](https://rmarkdown.rstudio.com) by Posit (formerly known as RStudio). Similar to *.rmd* files, *.qmd* files can include scientific content (e.g. cross-referencing, LaTeX-based equations), and can be published in multiple output formats (HTML, PDF, etc.). -- This book uses Quarto.]{.aside} On a higher level, tools that enable interoperability between programming languages have become available. For example, the `r BiocStyle::Biocpkg("reticulate")` package provides an R interface to Python, including support to translate between objects from both languages; `r BiocStyle::Biocpkg("basilisk")` facilitates Python environment management within the Bioconductor ecosystems, but can be interfaced with `reticulate` as well; and, Quarto can generate dynamic reports from code in different languages.
 
+```{=html}
 <!--
 Nevertheless, future efforts should be made on the developers' side to consider existing frameworks in the first place (during implementation), and to provide users with documentation (e.g., code demos) and the necessary methods (e.g., conversion functions) to use other tools, if they so wish, in multi-tool and potentially multilingual analysis pipelines.
 
@@ -23,86 +20,185 @@ Developed for cloud-storage of large high-dimensional arrays, Python's Zarr\cite
 The `r BiocStyle::Biocpkg("Rarr")` package, which has recently been submitted to Bioconductor, aims to provide an R interface to Zarr.
 Together, these developments have the potential to lay a foundation for more seamless interoperability of computational tools to analyze single-cell and spatial omics data.
 -->
+```
 
+## Dependencies
 
-## Example
+```{r libraries, message=FALSE, warning=FALSE}
+#| code-fold: false
+library(OSTA.data)
+library(SpatialExperiment)
+library(VisiumIO)
+library(zellkonverter)
+library(jsonlite)
+library(reticulate)
+library(basilisk)
+```
+
+## Configuring Python
+
+We first create an environment with Python modules necessary for the examples in this chapter. For that, we first define a `r BiocStyle::Biocpkg("basilisk")` environment and use the resulting conda environment with `r BiocStyle::Biocpkg("reticulate")`.
+
+```{r env, warning=FALSE}
+#| code-fold: false
+env <- BasiliskEnvironment(
+  envname="bkg-interop", 
+  pkgname="base",
+  channels=c("conda-forge", "bioconda", "pytorch"),
+  packages=c(
+    "python=3.11",
+    "Dask=2024.12.1"),
+  pip=c(
+    "squidpy==1.6.2"))
+use_virtualenv(obtainEnvironmentPath(env))
+```
+
+## SingleCellExperiment
 
 ### Calling Python
 
-Say we have created a `conda` environment; e.g.:
+After configuring the python environment, R commands will now be `reticulate`d; e.g.: [Note that running code in this way comes with the overhead of starting up a Python session in the background. But this is typically negligible compared to the runtime required to run computation-heavy methods, or when analyzing large-scale single-cell and spatial data (100,000s of cells).]{.aside}
 
-```{bash eval=FALSE}
+```{r load-sce}
 #| code-fold: false
-# from the command line
-conda create -n scvi python=3.12
-conda activate scvi
-conda install scvi-tools -c conda-forge
+anndata <- reticulate::import("anndata")
+example_h5ad <- system.file("extdata", "krumsiek11.h5ad", package = "zellkonverter")
+(ad <- anndata$read_h5ad(example_h5ad))
 ```
-
-We can then point `reticulate` to said environment via:
-
-```{r eval=FALSE}
-#| code-fold: false
-library(reticulate)
-bin <- "~/software/mambaforge/bin/conda"
-options(reticulate.conda_binary=bin)
-use_condaenv("scvi")
-```
-
-R commands will now be `reticulate`d in the above environment; e.g.: [Note that running code in this way comes with the overhead of starting up a Python session in the background. But this is typically negligible compared to the runtime required to run computation-heavy methods, or when analyzing large-scale single-cell and spatial data (100,000s of cells).]{.aside}
-
-```{r eval=FALSE}
-#| code-fold: false
-scvi <- import("scvi")
-dir.create(td <- tempfile())
-(ad <- scvi$data$cortex(save_path=td))
-# AnnData object with n_obs × n_vars = 3005 × 19972
-#     obs: 'labels', 'precise_labels', 'cell_type'
-```
-
 
 ### Continuing in R
 
 We can access *any* of the variables above in R. For basic outputs, this works out of the box:
 
-```{r eval=FALSE}
+```{r uniq-celltype}
 #| code-fold: false
 unique(ad$obs$cell_type)
-# [1] "interneurons"         "pyramidal SS" "pyramidal CA1"       
-# [4] "oligodendrocytes"     "microglia"    "endothelial-mural"   
-# [7] "astrocytes_ependymal"
 ```
 
 Then again, `reticulate` supports few direct [type conversions](https://rstudio.github.io/reticulate/#type-conversions) (e.g. dictionary $\leftrightarrow$ named list). In the example demonstrated here, we can use `zellkonverter` to go from `AnnData` to `SingleCellExperiment`:
 
-```{r eval=FALSE}
+```{r anndata2sce}
 #| code-fold: false
-library(zellkonverter)
+#| warning: false
 (sce <- AnnData2SCE(ad))
-# class: SingleCellExperiment 
-# dim: 19972 3005 
-# metadata(0):
-# assays(1): X
-# rownames(19972): Tspan12 Tshz1 ... Gm21943_loc3 Gm20738_loc3
-# rowData names(0):
-# colnames(3005): 0 1 ... 3003 3004
-# colData names(3): labels precise_labels cell_type
-# reducedDimNames(0):
-# mainExpName: NULL
-# altExpNames(0):
 ```
-
 
 ### Back to Python
 
 We can also do the reverse, i.e. go from R's `SingleCellExperiment` to Python's `AnnData`:
 
-```{r eval=FALSE}
+```{r sce2anndata}
 #| code-fold: false
 (ad <- SCE2AnnData(sce, X_name="X"))
-# AnnData object with n_obs × n_vars = 3005 × 19972
-#     obs: 'labels', 'precise_labels', 'cell_type'
-#     uns: 'X_name'
+```
+
+## SpatialExperiment
+
+Since `SpatialExperiment` extends the `SingleCellExperiment` class, conversion operations that we discussed above are also applicable to the `SpatialExperiment` class. However, to accomplish a full conversion from the `AnnData` object, we need to manually insert/import the remaining spatial information using `reticulate` directly. 
+
+### Starting with R
+
+For this use case with `SpatialExperiment`, we will use the dataset from @Janesick2023, which includes Visium measurements on human breast cancer tissue.
+
+```{r load-spe, message=FALSE, warning=FALSE, results="hide"}
+#| code-fold: false
+id <- "Visium_HumanBreast_Janesick"
+pa <- OSTA.data_load(id)
+dir.create(td <- tempfile())
+unzip(pa, exdir=td)
+obj <- TENxVisium(
+    spacerangerOut=td, 
+    format="h5", 
+    images="lowres")
+(spe <- VisiumIO::import(obj))
+```
+
+We also have to parse the original scaling information (i.e. scale factor) for spots and images available in standard Visium output. We will use this later during conversion.
+
+```{r scalefactors, message=FALSE, results="hide"}
+#| code-fold: false
+scalefactors <- jsonlite::read_json(file.path(td, "outs/spatial/scalefactors_json.json"))
+```
+
+We again use the `SCE2AnnData` function from the previous example, and convert the `SingleCellExperiment` relevant components of the `SpatialExperiment` object to an `AnnData` object.
+
+```{r spe2anndata, message=FALSE}
+#| code-fold: false
+(ad <- SCE2AnnData(spe, X_name="counts"))
+```
+
+We should now populate `uns` and `obsm` components of `AnnData` with spatial coordinates and images. We start with the coordinates.
+
+```{r coords}
+#| code-fold: false
+coords <- spatialCoords(spe)
+colnames(coords) <- c("x", "y")
+obsm <- list(spatial = coords)
+```
+
+Now lets create the `uns` component. The list of `uns` should compose of as many samples as the images in the `SpatialExperiment` object. Also, each sample entry in the list should have two elements, one for the image and the other for scaling information. 
+
+```{r uns}
+#| code-fold: false
+# get image metadata
+imgdata <- imgData(spe)
+
+# get image
+img <- imgRaster(spe)
+img <- apply(img, c(1,2), \(x) col2rgb(x))
+img <- aperm(img, perm = c(2,3,1))
+img <- img/255
+
+# create uns
+uns <- list(
+  spatial = setNames(list(NULL), imgdata$sample_id)
+)
+uns[["spatial"]][[imgdata$sample_id]] <-
+  list(images = list(lowres = img),
+       scalefactors = scalefactors)
+```
+
+Now lets insert the components to the `AnnData` object, and write back to an h5ad file.
+
+```{r writeh5ad}
+#| code-fold: false
+ad$obs$library_id <- imgdata$sample_id
+ad$obsm <- obsm
+ad$uns <- uns
+ad$write_h5ad("spe.h5ad")
+```
+
+### Calling Python
+
+Now that we have converted our `SpatialExperiment` object to `AnnData` format, we visualize the Visium data using, for example, the `squidpy` module.
+
+```{python modules}
+#| code-fold: false
+#| output: false
+import squidpy as sq
+import anndata as ad
+import matplotlib.pyplot as plt
+```
+
+Now, we read `spe.h5ad` and visualize features and/or gene expression (e.g. ERBB2).
+
+```{python spatial-scatter}
+#| code-fold: false
+#| include: true
+#| warning: false
+#| message: false
+#| error: false
+#| output: true
+#| label: spatial_scatter
+adata = ad.read_h5ad("spe.h5ad")
+adata.var_names = adata.var['Symbol'].astype(str)
+sq.pl.spatial_scatter(adata,
+                      color=["ERBB2"], 
+                      img_res_key = "lowres")
+```
+
+```{r, include=FALSE}
+file.remove("spe.h5ad")
 ```
 
 

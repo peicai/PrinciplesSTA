@@ -6,7 +6,7 @@ knitr:
     class.output: "code_output"
     cache: false
     fig.align: "center"
-    python.reticulate: false
+    python.reticulate: true
     R.options:
       dplyr.print_min: 6
       dplyr.print_max: 6

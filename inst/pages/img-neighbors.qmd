@@ -1,6 +1,13 @@
 # Neighborhood analysis {#sec-img-neighbors}
 
-## Dependencies
+## Preamble
+
+### Introduction
+
+Neighborhood analysis aims to investigate the composition of and interaction between cells and cell types within small regions of tissue, which are referred to as neighborhoods or niches.
+
+
+### Dependencies
 
 ```{r deps, message=FALSE, warning=FALSE}
 library(dplyr)
@@ -10,9 +17,15 @@ library(patchwork)
 library(RColorBrewer)
 library(BiocParallel)
 library(SpatialExperiment)
+```
+
+```{r, message=FALSE, warning=FALSE}
 # load data from previous section
 spe <- readRDS("img-spe_cl.rds")
 spe$k <- colLabels(spe)
+```
+
+```{r, message=FALSE, warning=FALSE}
 # basic theme for spatial plots
 theme_xy <- list(
     coord_equal(expand=FALSE), 
@@ -21,6 +34,7 @@ theme_xy <- list(
         legend.key=element_blank(),
         panel.background=element_rect(fill="black")))
 ```
+
 
 ## Nearest neighbors
 
@@ -104,6 +118,7 @@ max(rowSums(ns$nn.idx > 0)) < k
 
 :::
 
+
 ## Spatial contexts
 
 Spatial niche analysis aims at identifying regions of homogeneous composition by grouping cells based on their microenvironment.
@@ -151,6 +166,7 @@ plot_layout(nrow=1) &
     guides(col=guide_legend(override.aes=list(size=2))) &
     theme_xy & theme(legend.key.size=unit(0.5, "lines"))
 ```
+
 
 ## Co-localization
 
@@ -222,4 +238,7 @@ ggplot(fd, aes(k, value, fill=k)) +
 
 :::
 
-## References {.unnumbered}
+
+## Appendix
+
+### References {.unnumbered}
